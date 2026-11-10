@@ -1,0 +1,14 @@
+{
+  "name": "erpforall-agent-kit",
+  "description": "Skills and small tools that help AI coding agents build ERPForAll addons correctly.",
+  "owner": {
+    "name": "ERPForAll contributors"
+  },
+  "plugins": [
+    {
+      "name": "erpforall-agent-kit",
+      "source": "./",
+      "description": "Skills and small tools that help AI coding agents build ERPForAll addons correctly."
+    }
+  ]
+}

@@ -6,7 +6,8 @@ directory name and is lowercase-hyphen (at most 64 characters); description is 1
 a final `## Sources` section whose list items are repo-relative paths; with --source <checkout>
 every listed path must exist there, and every `something.md` page named in backticks must exist in
 the checkout's docs/addon-guide/. Without --source the existence checks are skipped (and reported).
-A hygiene scan fails on internal host names, team-process words and e-mail addresses.
+A hygiene scan fails on e-mail addresses, *.internal/*.lan/*.local host names, attribution lines, and any
+extra pattern given with --forbid.
 
 Usage: scripts/check.py [--source PATH] [--skills DIR]
 """
@@ -19,11 +20,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-FORBIDDEN = [
-    r"crewbus", r"ubuntu-build", r"mac-kantor", r"radit-mini", r"arkana", r"co-authored-by",
-    r"generated with", r"[\w.+-]+@[\w-]+\.[\w.-]+",
-]
-FORBIDDEN_RE = re.compile("|".join(FORBIDDEN), re.I)
+# Generic hygiene patterns; a maintainer can add private words (host names, team names) with --forbid FILE,
+# one regular expression per line, kept outside the repository.
+FORBIDDEN = [r"co-authored-by", r"generated with", r"[\w.+-]+@[\w-]+\.[\w.-]+", r"\b[\w-]+\.(?:internal|lan|local)\b"]
 PAGE_RE = re.compile(r"`([a-z0-9][a-z0-9_-]*\.md)`")
 
 
@@ -55,7 +54,7 @@ def sources_of(body: str) -> list[str] | None:
     return [m.group(1).strip().strip("`") for ln in tail if (m := re.match(r"^- (.+)$", ln))]
 
 
-def check_skill(skill_dir: Path, source: Path | None) -> list[str]:
+def check_skill(skill_dir: Path, source: Path | None, forbidden: re.Pattern[str] | None = None) -> list[str]:
     errs: list[str] = []
     md = skill_dir / "SKILL.md"
     if not md.is_file():
@@ -83,7 +82,8 @@ def check_skill(skill_dir: Path, source: Path | None) -> list[str]:
         errs.append(f"{tag}: needs exactly one '## Sources' section, and it must be the last section")
     elif not srcs:
         errs.append(f"{tag}: Sources list is empty")
-    for m in FORBIDDEN_RE.finditer(text):
+    pattern = forbidden or re.compile("|".join(FORBIDDEN), re.I)
+    for m in pattern.finditer(text):
         errs.append(f"{tag}: forbidden text {m.group(0)!r}")
     if source is not None:
         for s in srcs or []:
@@ -102,6 +102,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--source", type=Path, help="checkout of the ERPForAll source repository")
     ap.add_argument("--skills", type=Path, default=ROOT / "skills")
+    ap.add_argument("--forbid", type=Path, help="file of extra regular expressions (one per line) that must not appear")
     a = ap.parse_args(argv)
     if a.source is not None and not a.source.is_dir():
         print(f"error: --source {a.source} is not a directory", file=sys.stderr)
@@ -110,9 +111,11 @@ def main(argv: list[str] | None = None) -> int:
     if not dirs:
         print(f"error: no skills found in {a.skills}", file=sys.stderr)
         return 2
+    extra = [ln.strip() for ln in a.forbid.read_text().splitlines() if ln.strip()] if a.forbid else []
+    forbidden = re.compile("|".join(FORBIDDEN + extra), re.I)
     errs: list[str] = []
     for d in dirs:
-        errs += check_skill(d, a.source)
+        errs += check_skill(d, a.source, forbidden)
     for e in errs:
         print(f"ERROR {e}")
     note = "" if a.source else " (source paths NOT verified: pass --source)"
