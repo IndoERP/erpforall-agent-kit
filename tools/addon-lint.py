@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Static checks for an ERPForAll addon directory. Python 3.11+, standard library only.
+"""Static checks for an ERPForAll addon directory. Python 3.10+, standard library only (a subset TOML reader replaces tomllib on 3.10).
 
 It catches mistakes an AI coding agent (or a person) commonly makes before the addon is
 installed. It does not replace installing the addon: the framework's loader is the authority.
@@ -32,11 +32,240 @@ import argparse
 import csv
 import re
 import sys
-import tomllib
 import xml.etree.ElementTree as ET
 from xml.parsers import expat
 from dataclasses import dataclass
 from pathlib import Path
+
+# ----------------------------------------------------------------------------------------------- toml
+# tomllib exists from Python 3.11; build hosts may run 3.10. `toml_loads` uses tomllib when importable and
+# otherwise `_mini_toml`, a reader for the subset the repository's Cargo.toml, manifest.toml and models/*.toml
+# use: tables, arrays of tables, dotted keys, strings (basic, literal, multi-line), integers, floats, booleans,
+# arrays and inline tables. Anything else (dates, hex, bare syntax it does not know) raises TomlError.
+
+try:
+    import tomllib as _tomllib
+except ImportError:  # Python 3.10
+    _tomllib = None
+
+
+class TomlError(ValueError):
+    pass
+
+
+_ESC = {"b": "\b", "t": "\t", "n": "\n", "f": "\f", "r": "\r", '"': '"', "\\": "\\"}
+_KEY = re.compile(r'\s*(?:([A-Za-z0-9_-]+)|"((?:\\.|[^"\\])*)"|\'([^\']*)\')\s*')
+_NUM = re.compile(r"[+-]?(?:0|[1-9](?:_?\d)*)(?:\.\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?(?![\w.:-])")
+
+
+class _Reader:
+    def __init__(self, text: str) -> None:
+        self.s, self.i = text, 0
+
+    def err(self, msg: str) -> TomlError:
+        return TomlError(f"{msg} (line {self.s.count(chr(10), 0, self.i) + 1})")
+
+    def ws(self, newlines: bool = False) -> None:
+        while self.i < len(self.s):
+            c = self.s[self.i]
+            if c in " \t" or (newlines and c in "\r\n"):
+                self.i += 1
+            elif c == "#" and (newlines or True):
+                while self.i < len(self.s) and self.s[self.i] != "\n":
+                    self.i += 1
+            else:
+                break
+
+    def key(self) -> list[str]:
+        parts = []
+        while True:
+            m = _KEY.match(self.s, self.i)
+            if not m:
+                raise self.err("unsupported key")
+            if m.group(1) is not None:
+                parts.append(m.group(1))
+            elif m.group(2) is not None:
+                parts.append(self.unescape(m.group(2)))
+            else:
+                parts.append(m.group(3))
+            self.i = m.end()
+            if self.s.startswith(".", self.i):
+                self.i += 1
+                continue
+            return parts
+
+    def unescape(self, raw: str) -> str:
+        out, i = [], 0
+        while i < len(raw):
+            c = raw[i]
+            if c != "\\":
+                out.append(c); i += 1
+                continue
+            n = raw[i + 1:i + 2]
+            if n in _ESC:
+                out.append(_ESC[n]); i += 2
+            elif n in ("u", "U"):
+                w = 4 if n == "u" else 8
+                out.append(chr(int(raw[i + 2:i + 2 + w], 16))); i += 2 + w
+            else:
+                raise self.err(f"unsupported escape \\{n}")
+        return "".join(out)
+
+    def value(self):
+        s, i = self.s, self.i
+        if s.startswith('"""', i):
+            j = s.find('"""', i + 3)
+            while j >= 0 and s[j - 1] == "\\":
+                j = s.find('"""', j + 1)
+            if j < 0:
+                raise self.err("unterminated string")
+            body = s[i + 3:j]
+            self.i = j + 3
+            if body.startswith("\r\n"):
+                body = body[2:]
+            elif body.startswith("\n"):
+                body = body[1:]
+            if re.search(r"\\\s*\n", body):
+                body = re.sub(r"\\[ \t]*\r?\n\s*", "", body)
+            return self.unescape(body)
+        if s.startswith("'''", i):
+            j = s.find("'''", i + 3)
+            if j < 0:
+                raise self.err("unterminated string")
+            body = s[i + 3:j]
+            self.i = j + 3
+            return body[1:] if body.startswith("\n") else body
+        if s.startswith('"', i):
+            m = re.compile(r'"((?:\\.|[^"\\\n])*)"').match(s, i)
+            if not m:
+                raise self.err("unterminated string")
+            self.i = m.end()
+            return self.unescape(m.group(1))
+        if s.startswith("'", i):
+            m = re.compile(r"'([^'\n]*)'").match(s, i)
+            if not m:
+                raise self.err("unterminated string")
+            self.i = m.end()
+            return m.group(1)
+        if s.startswith("[", i):
+            self.i += 1
+            out: list = []
+            while True:
+                self.ws(True)
+                if s.startswith("]", self.i):
+                    self.i += 1
+                    return out
+                out.append(self.value())
+                self.ws(True)
+                if s.startswith(",", self.i):
+                    self.i += 1
+                elif not s.startswith("]", self.i):
+                    raise self.err("expected , or ] in array")
+        if s.startswith("{", i):
+            self.i += 1
+            tbl: dict = {}
+            while True:
+                self.ws()
+                if s.startswith("}", self.i):
+                    self.i += 1
+                    return tbl
+                k = self.key()
+                self.ws()
+                if not s.startswith("=", self.i):
+                    raise self.err("expected = in inline table")
+                self.i += 1
+                self.ws()
+                _set(tbl, k, self.value(), self)
+                self.ws()
+                if s.startswith(",", self.i):
+                    self.i += 1
+                elif not s.startswith("}", self.i):
+                    raise self.err("expected , or } in inline table")
+        for word, val in (("true", True), ("false", False)):
+            if s.startswith(word, i) and not re.match(r"[\w-]", s[i + len(word):i + len(word) + 1] or " "):
+                self.i += len(word)
+                return val
+        m = _NUM.match(s, i)
+        if m and not re.match(r"\d{4}-\d\d", s[i:i + 7]):
+            self.i = m.end()
+            t = m.group().replace("_", "")
+            return float(t) if re.search(r"[.eE]", t) else int(t)
+        raise self.err(f"unsupported value `{s[i:i + 20].splitlines()[0] if s[i:i + 20] else ''}`")
+
+
+def _set(tbl: dict, key: list[str], value, rd: _Reader) -> None:
+    for k in key[:-1]:
+        tbl = tbl.setdefault(k, {})
+        if not isinstance(tbl, dict):
+            raise rd.err("key path crosses a non-table")
+    if key[-1] in tbl:
+        raise rd.err(f"duplicate key {key[-1]}")
+    tbl[key[-1]] = value
+
+
+def _mini_toml(text: str) -> dict:
+    rd = _Reader(text)
+    root: dict = {}
+    cur = root
+    while True:
+        rd.ws(True)
+        if rd.i >= len(text):
+            return root
+        if text.startswith("[[", rd.i):
+            rd.i += 2
+            k = rd.key()
+            if not text.startswith("]]", rd.i):
+                raise rd.err("expected ]]")
+            rd.i += 2
+            tbl = root
+            for p in k[:-1]:
+                tbl = tbl.setdefault(p, {})
+                if isinstance(tbl, list):
+                    tbl = tbl[-1]
+            arr = tbl.setdefault(k[-1], [])
+            if not isinstance(arr, list):
+                raise rd.err("array of tables clashes with a table")
+            cur = {}
+            arr.append(cur)
+        elif text.startswith("[", rd.i):
+            rd.i += 1
+            k = rd.key()
+            if not text.startswith("]", rd.i):
+                raise rd.err("expected ]")
+            rd.i += 1
+            tbl = root
+            for p in k:
+                tbl = tbl.setdefault(p, {})
+                if isinstance(tbl, list):
+                    tbl = tbl[-1]
+                if not isinstance(tbl, dict):
+                    raise rd.err("table clashes with a value")
+            cur = tbl
+        else:
+            k = rd.key()
+            rd.ws()
+            if not text.startswith("=", rd.i):
+                raise rd.err("expected =")
+            rd.i += 1
+            rd.ws()
+            _set(cur, k, rd.value(), rd)
+        rd.ws()
+        if rd.i < len(text) and text[rd.i] not in "\r\n":
+            raise rd.err("unexpected text after a value")
+
+
+def toml_loads(text: str) -> dict:
+    """tomllib when available, else the subset reader; both raise TomlError on bad or unsupported input."""
+    if _tomllib is not None:
+        try:
+            return _tomllib.loads(text)
+        except _tomllib.TOMLDecodeError as e:
+            raise TomlError(str(e)) from e
+    try:
+        return _mini_toml(text)
+    except (IndexError, KeyError, ValueError) as e:
+        raise TomlError(str(e)) from e
+
 
 MANIFEST_KEYS = {
     "name", "summary", "description", "version", "license", "author", "category", "application",
@@ -169,8 +398,8 @@ class Linter:
             self.add("E", mpath, None, "manifest.toml is missing")
             return
         try:
-            self.manifest = tomllib.loads(mpath.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+            self.manifest = toml_loads(mpath.read_text(encoding="utf-8"))
+        except (TomlError, UnicodeDecodeError) as e:
             self.add("E", mpath, None, f"manifest.toml does not parse: {e}")
             return
         for key in self.manifest:
@@ -246,8 +475,8 @@ class Linter:
 
     def _check_model_file(self, f: Path) -> None:
         try:
-            doc = tomllib.loads(f.read_text(encoding="utf-8"))
-        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as e:
+            doc = toml_loads(f.read_text(encoding="utf-8"))
+        except (TomlError, UnicodeDecodeError) as e:
             self.add("E", f, None, f"does not parse: {e}")
             return
         for key in doc:
@@ -555,14 +784,14 @@ class Linter:
                 missing.append(d)
                 continue
             try:
-                queue += tomllib.loads((root / "manifest.toml").read_text(encoding="utf-8")).get("depends", [])
-            except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+                queue += toml_loads((root / "manifest.toml").read_text(encoding="utf-8")).get("depends", [])
+            except (TomlError, UnicodeDecodeError):
                 pass
             for f in sorted((root / "models").glob("*.toml")) if (root / "models").is_dir() else []:
                 try:
-                    for m in tomllib.loads(f.read_text(encoding="utf-8")).get("model", []):
+                    for m in toml_loads(f.read_text(encoding="utf-8")).get("model", []):
                         found.add(m.get("name") or m.get("extend") or "")
-                except (tomllib.TOMLDecodeError, UnicodeDecodeError):
+                except (TomlError, UnicodeDecodeError):
                     pass
             for f in sorted((root / "src").rglob("*.rs")) if (root / "src").is_dir() else []:
                 for m in MODEL_ATTR.finditer(f.read_text(encoding="utf-8", errors="replace")):
