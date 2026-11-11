@@ -20,7 +20,7 @@ Usage: install.sh --agent AGENT [options]      install skills
   --force            replace an existing symlink of the same name that points somewhere else
   --bin-dir DIR      where to put erpforall-new-addon and erpforall-addon-lint
                      (default with --scope user: ~/.local/bin; none with --scope project)
-  --no-tools         do not install the two command-line tools
+  --no-tools         do not install the three command-line tools
   --agents-md        also add (or refresh) a marked block in DIR/AGENTS.md that points at the skill files
   --dry-run          print what would happen, change nothing
   -h, --help
@@ -135,6 +135,7 @@ if [ "$tools" = 1 ] && [ -n "$bindir" ]; then
   say "== tools: $bindir"
   install_tool new-addon.py erpforall-new-addon
   install_tool addon-lint.py erpforall-addon-lint
+  install_tool addon-graph.py erpforall-addon-graph
   case ":$PATH:" in *":$bindir:"*) ;; *) [ "$uninstall" = 1 ] || say "note    $bindir is not on PATH" ;; esac
 fi
 

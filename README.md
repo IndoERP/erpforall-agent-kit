@@ -1,6 +1,6 @@
 # ERPForAll agent kit
 
-Skills and two small tools that help an AI coding agent build correct ERPForAll
+Skills and three small tools that help an AI coding agent build correct ERPForAll
 addons: manifest and layout, models and fields, views, menus and actions, access control, data files, tests, client
 extensions and the chatter. It works with Claude Code, OpenAI Codex CLI and Google Antigravity / Gemini CLI from one
 set of skill files.
@@ -15,7 +15,7 @@ Licence: `MIT OR Apache-2.0`.
 
 Clone this repository, then run `install.sh` for your agent. It symlinks the skill folders (add `--copy` to copy),
 is safe to repeat, never overwrites anything it did not create, and accepts `--dry-run`, `--scope project`,
-`--project-dir DIR` and `--uninstall`. It also links two commands into `~/.local/bin` (`--no-tools` skips that).
+`--project-dir DIR` and `--uninstall`. It also links three commands into `~/.local/bin` (`--no-tools` skips that).
 
 | Agent | Command | Skills end up in |
 |---|---|---|
@@ -58,6 +58,10 @@ Python 3.11+, standard library only.
 - `tools/addon-lint.py <addon-dir> [--addons-path DIR]...` (command `erpforall-addon-lint`): static checks for
   manifest/data file mismatches, access CSV shape, XML structure and root, references used before they are defined,
   model and field names, and model-file keys. It is not a substitute for installing the addon.
+- `tools/addon-graph.py [--addons-path DIR]... summary|model|field|impact|context` (command `erpforall-addon-graph`):
+  a graph of your own addons (models, fields, RPC methods, views, menus, actions, access rows, inheritance, addon
+  dependencies), each fact with `path:line`. `model` and `field` exit 1 when a name is not declared in your addons;
+  `impact <file>...` shows what a change reaches; `context "<task>"` lists the places to read first.
 
 ## Develop the kit
 

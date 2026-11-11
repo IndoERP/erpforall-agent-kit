@@ -65,7 +65,8 @@ def generate() -> dict[str, str]:
     lines += [
         "",
         "Tools (Python 3.11+): `python3 {{KIT}}/tools/new-addon.py <name> --dest addons` scaffolds a data-only",
-        "addon; `python3 {{KIT}}/tools/addon-lint.py addons/<name> --addons-path addons` checks one.",
+        "addon; `python3 {{KIT}}/tools/addon-lint.py addons/<name> --addons-path addons` checks one;",
+        "`python3 {{KIT}}/tools/addon-graph.py context \"<task>\"` lists what your addons define before you write against it.",
         "If a skill does not cover something, say so; do not invent APIs, XML attributes or CLI flags.",
         "",
     ]
