@@ -1,0 +1,21 @@
+$ python3 tools/addon-graph.py --addons-path examples/addons model library.book
+model library.book - Book
+  defines by library  examples/addons/library/models/10_book.toml:2
+  extends by library_loans  examples/addons/library_loans/models/20_book.toml:2
+fields (5):
+  author_id: many2one -> library.author  examples/addons/library/models/10_book.toml:19
+  description: text  examples/addons/library/models/10_book.toml:14
+  genre_ids: many2many -> library.genre  examples/addons/library/models/10_book.toml:26
+  loan_ids: one2many -> library_loans.loan  examples/addons/library_loans/models/20_book.toml:5
+  name: char  examples/addons/library/models/10_book.toml:7
+views (4):
+  library.library_book_form examples/addons/library/views/library_views.xml:14
+  library.library_book_list examples/addons/library/views/library_views.xml:3
+  library.library_book_search examples/addons/library/views/library_views.xml:42
+  library_loans.library_book_form_loans examples/addons/library_loans/views/library_loans_views.xml:39
+actions (1):
+  library.library_book_action examples/addons/library/views/library_views.xml:90
+menus (1):
+  library.library_book_menu examples/addons/library/views/library_views.xml:102
+access rows (1):
+  access_library_book_user examples/addons/library/security/ir.access.csv:2

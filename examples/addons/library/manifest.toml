@@ -1,0 +1,17 @@
+name = "Library"
+summary = "Books, authors and genres: a small data-only example addon"
+version = "1.0.0"
+description = "A worked example for the knowledge graph tool: models in models/*.toml, views, a menu, a window action, access rows, default data and demo data."
+license = "MIT OR Apache-2.0"
+author = "ERPForAll kit examples"
+category = "Sample"
+application = true
+depends = ["base"]
+data = [
+    "security/ir.access.csv",
+    "views/library_views.xml",
+    "data/library_data.xml",
+]
+demo = [
+    "demo/library_demo.xml",
+]

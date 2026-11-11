@@ -1,0 +1,15 @@
+name = "Library Loans"
+summary = "Loans of library books: extends the library example addon"
+description = "A second example addon: it depends on library, adds a model that points at library.book, extends library.book with a field, and inherits the book form with an xpath."
+version = "1.0.0"
+license = "MIT OR Apache-2.0"
+author = "ERPForAll kit examples"
+category = "Sample"
+depends = ["base", "library"]
+data = [
+    "security/ir.access.csv",
+    "views/library_loans_views.xml",
+]
+demo = [
+    "demo/library_loans_demo.xml",
+]

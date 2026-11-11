@@ -61,7 +61,9 @@ Python 3.10+, standard library only.
 - `tools/addon-graph.py [--addons-path DIR]... summary|model|field|impact|context` (command `erpforall-addon-graph`):
   a graph of your own addons (models, fields, RPC methods, views, menus, actions, access rows, inheritance, addon
   dependencies), each fact with `path:line`. `model` and `field` exit 1 when a name is not declared in your addons;
-  `impact <file>...` shows what a change reaches; `context "<task>"` lists the places to read first.
+  `impact <file>...` shows what a change reaches; `context "<task>"` lists the places to read first; `export`
+  prints the whole graph as JSON. A worked example with two addons and sample output is in
+  [examples/README.md](examples/README.md).
 
 ## Develop the kit
 

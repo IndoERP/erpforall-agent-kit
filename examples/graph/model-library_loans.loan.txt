@@ -1,0 +1,17 @@
+$ python3 tools/addon-graph.py --addons-path examples/addons model library_loans.loan
+model library_loans.loan - Loan
+  defines by library_loans  examples/addons/library_loans/models/10_loan.toml:2
+fields (4):
+  book_id: many2one -> library.book  examples/addons/library_loans/models/10_loan.toml:7
+  borrower: char  examples/addons/library_loans/models/10_loan.toml:15
+  loan_date: date  examples/addons/library_loans/models/10_loan.toml:21
+  state: selection  examples/addons/library_loans/models/10_loan.toml:26
+views (2):
+  library_loans.library_loans_loan_form examples/addons/library_loans/views/library_loans_views.xml:15
+  library_loans.library_loans_loan_list examples/addons/library_loans/views/library_loans_views.xml:3
+actions (1):
+  library_loans.library_loans_loan_action examples/addons/library_loans/views/library_loans_views.xml:51
+menus (1):
+  library_loans.library_loans_loan_menu examples/addons/library_loans/views/library_loans_views.xml:56
+access rows (1):
+  access_library_loans_loan_user examples/addons/library_loans/security/ir.access.csv:2

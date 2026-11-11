@@ -1,0 +1,27 @@
+$ python3 tools/addon-graph.py --addons-path examples/addons context "show the loans of a book on the book form"
+context for: show the loans of a book on the book form
+examples/addons/library/models/10_book.toml:2  model library.book  <- name or description matches
+examples/addons/library_loans/models/10_loan.toml:2  model library_loans.loan  <- name or description matches
+examples/addons/library/manifest.toml  addon library  <- name or summary matches; depends on base
+examples/addons/library_loans/manifest.toml  addon library_loans  <- name or summary matches; depends on base, library
+examples/addons/library_loans/models/20_book.toml:5  field library.book.loan_ids  <- field of library.book matching the text
+examples/addons/library_loans/models/10_loan.toml:7  field library_loans.loan.book_id  <- field of library_loans.loan matching the text
+examples/addons/library/views/library_views.xml:3  view library.library_book_list  <- name matches
+examples/addons/library/views/library_views.xml:14  view library.library_book_form  <- name matches
+examples/addons/library/views/library_views.xml:42  view library.library_book_search  <- name matches
+examples/addons/library/views/library_views.xml:63  view library.library_author_form  <- name matches
+examples/addons/library_loans/views/library_loans_views.xml:3  view library_loans.library_loans_loan_list  <- name matches
+examples/addons/library_loans/views/library_loans_views.xml:15  view library_loans.library_loans_loan_form  <- name matches
+examples/addons/library_loans/views/library_loans_views.xml:39  view library_loans.library_book_form_loans  <- name matches
+examples/addons/library/views/library_views.xml:102  menu library.library_book_menu  <- name matches
+examples/addons/library_loans/views/library_loans_views.xml:56  menu library_loans.library_loans_loan_menu  <- name matches
+examples/addons/library/views/library_views.xml:3  view of library.book  <- shows the model
+examples/addons/library/views/library_views.xml:14  view of library.book  <- shows the model
+examples/addons/library/views/library_views.xml:42  view of library.book  <- shows the model
+examples/addons/library_loans/views/library_loans_views.xml:39  view of library.book  <- shows the model
+examples/addons/library/views/library_views.xml:90  action library.library_book_action  <- opens library.book
+examples/addons/library_loans/views/library_loans_views.xml:3  view of library_loans.loan  <- shows the model
+examples/addons/library_loans/views/library_loans_views.xml:15  view of library_loans.loan  <- shows the model
+examples/addons/library_loans/views/library_loans_views.xml:51  action library_loans.library_loans_loan_action  <- opens library_loans.loan
+examples/addons/library/security/ir.access.csv:2  access row access_library_book_user  <- grants library.book
+examples/addons/library_loans/security/ir.access.csv:2  access row access_library_loans_loan_user  <- grants library_loans.loan

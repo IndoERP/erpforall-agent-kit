@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<erp>
+    <!-- Default genres every installation gets. -->
+    <record id="genre_fiction" model="library.genre">
+        <field name="name">Fiction</field>
+    </record>
+    <record id="genre_non_fiction" model="library.genre">
+        <field name="name">Non-fiction</field>
+    </record>
+    <record id="genre_reference" model="library.genre">
+        <field name="name">Reference</field>
+    </record>
+</erp>

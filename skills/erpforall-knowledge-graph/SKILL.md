@@ -28,7 +28,8 @@ addons path is `./addons`; repeat `--addons-path DIR` for several). Installed wi
    a form it does not read, an XML file that does not parse). An absence is only meaningful when that list does not
    cover the file you care about.
 
-Add `--json` to any command for tool use.
+Add `--json` to any command for tool use. A worked example with two addons and the output of every command is in
+`examples/README.md` and `examples/graph/` of this kit; read it to see what each answer looks like.
 
 ## What it reads
 

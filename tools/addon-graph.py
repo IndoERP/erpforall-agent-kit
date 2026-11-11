@@ -12,6 +12,7 @@ your addons (it may come from the framework or from an addon outside --addons-pa
   addon-graph.py [--addons-path DIR]... [--json] field <model> <field>
   addon-graph.py [--addons-path DIR]... [--json] impact <path>...
   addon-graph.py [--addons-path DIR]... [--json] context "<what you are about to do>"
+  addon-graph.py [--addons-path DIR]... export        # the whole graph as sorted JSON (format: docs/addon-graph-format.md)
 
 `--addons-path` defaults to ./addons. Exit status: 0 found, 1 not found (model, field), 2 usage error.
 
@@ -809,6 +810,78 @@ def cmd_impact(g: Graph, a) -> int:
     return 0
 
 
+def export_graph(g: Graph) -> dict:
+    """Every node and edge as plain data, sorted, so two runs on the same files give the same bytes."""
+    nodes: dict[tuple[str, str], dict] = {}
+    edges: list[dict] = []
+
+    def node(kind: str, name: str, file: str | None, line: int | None) -> None:
+        nodes.setdefault((kind, name), {"kind": kind, "name": name, "file": file, "line": line})
+
+    def edge(kind: str, a: tuple[str, str], b: tuple[str, str], file: str | None, line: int | None) -> None:
+        edges.append({"kind": kind, "from": f"{a[0]}:{a[1]}", "to": f"{b[0]}:{b[1]}", "file": file, "line": line})
+    for name, a in g.addons.items():
+        node("addon", name, a["path"], 1)
+        for dep in a["depends"]:
+            edge("depends_on", ("addon", name), ("addon", dep), a["path"], 1)
+    for mname, m in g.models.items():
+        for addon, how, p, ln in m["decls"]:
+            if how == "defines":
+                node("model", mname, p, ln)
+            edge(how, ("addon", addon), ("model", mname), p, ln)
+        for inh in sorted(set(m["inherits"])):
+            edge("inherits", ("model", mname), ("model", inh), m["decls"][0][2], m["decls"][0][3])
+        for fname, f in m["fields"].items():
+            node("field", f"{mname}.{fname}", f["path"], f["line"])
+            edge("has_field", ("model", mname), ("field", f"{mname}.{fname}"), f["path"], f["line"])
+            if f["comodel"]:
+                edge("relates_to", ("field", f"{mname}.{fname}"), ("model", f["comodel"]), f["path"], f["line"])
+        for meth, x in m["methods"].items():
+            node("rpc" if x["rpc"] else "method", f"{mname}.{meth}", x["path"], x["line"])
+            edge("has_method", ("model", mname), ("rpc" if x["rpc"] else "method", f"{mname}.{meth}"), x["path"], x["line"])
+    for k, v in g.views.items():
+        node("view", k, v["path"], v["line"])
+        if v["model"]:
+            edge("refers_to", ("view", k), ("model", v["model"]), v["path"], v["line"])
+            for fld in v["fields"]:
+                edge("uses_field", ("view", k), ("field", f"{v['model']}.{fld}"), v["path"], v["line"])
+        if v["inherits"]:
+            edge("inherits", ("view", k), ("view", v["inherits"]), v["path"], v["line"])
+    for k, v in g.actions.items():
+        node("action", k, v["path"], v["line"])
+        if v["model"]:
+            edge("refers_to", ("action", k), ("model", v["model"]), v["path"], v["line"])
+    for k, v in g.menus.items():
+        node("menu", k, v["path"], v["line"])
+        if v["action"]:
+            edge("opens", ("menu", k), ("action", v["action"]), v["path"], v["line"])
+        if v["parent"]:
+            edge("child_of", ("menu", k), ("menu", v["parent"]), v["path"], v["line"])
+    for r in g.access:
+        full = r["id"]
+        node("access", full, r["path"], r["line"])
+        model = access_model(g, r)
+        if model:
+            edge("refers_to", ("access", full), ("model", model), r["path"], r["line"])
+    for r in g.records:
+        node("record", r["id"], r["path"], r["line"])
+        if r["model"]:
+            edge("refers_to", ("record", r["id"]), ("model", r["model"]), r["path"], r["line"])
+    known = {f"{k}:{n}" for k, n in nodes}
+    edges = [e for e in edges if e["to"] in known]  # edges to things outside these addons (base, implicit fields) are left out
+    key = lambda e: (e["kind"], e["from"], e["to"], e["file"] or "", e["line"] or 0)  # noqa: E731
+    uniq = {json.dumps(e, sort_keys=True): e for e in edges}
+    return {"format": "addon-graph/1",
+            "nodes": sorted(nodes.values(), key=lambda n: (n["kind"], n["name"])),
+            "edges": sorted(uniq.values(), key=key),
+            "not_understood": [{"file": p, "line": ln, "reason": w} for p, ln, w in sorted(g.unparsed)]}
+
+
+def cmd_export(g: Graph, a) -> int:
+    print(json.dumps(export_graph(g), indent=1, sort_keys=True))
+    return 0
+
+
 def words(text: str) -> list[str]:
     return [w for w in (t.lower() for t in re.findall(r"[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)*", text)) if w not in STOP and len(w) >= 3]
 
@@ -866,6 +939,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--json", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("summary")
+    sub.add_parser("export")
     p = sub.add_parser("model"); p.add_argument("name")
     p = sub.add_parser("field"); p.add_argument("model"); p.add_argument("field")
     p = sub.add_parser("impact"); p.add_argument("paths", nargs="+")
@@ -878,7 +952,7 @@ def main(argv: list[str] | None = None) -> int:
         print("addon-graph: no addons directory found; pass --addons-path", file=sys.stderr)
         return 2
     g = build(paths)
-    return {"summary": cmd_summary, "model": cmd_model, "field": cmd_field, "impact": cmd_impact, "context": cmd_context}[a.cmd](g, a)
+    return {"summary": cmd_summary, "model": cmd_model, "field": cmd_field, "impact": cmd_impact, "context": cmd_context, "export": cmd_export}[a.cmd](g, a)
 
 
 if __name__ == "__main__":

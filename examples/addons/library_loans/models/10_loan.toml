@@ -1,0 +1,32 @@
+# A loan of one book to a named borrower.
+[[model]]
+name = "library_loans.loan"
+description = "Loan"
+order = "loan_date desc, id desc"
+
+[[model.field]]
+name = "book_id"
+type = "many2one"
+comodel = "library.book"
+string = "Book"
+required = true
+ondelete = "restrict"
+
+[[model.field]]
+name = "borrower"
+type = "char"
+string = "Borrower"
+required = true
+
+[[model.field]]
+name = "loan_date"
+type = "date"
+string = "Loan Date"
+
+[[model.field]]
+name = "state"
+type = "selection"
+selection = [["out", "On Loan"], ["returned", "Returned"]]
+string = "Status"
+default = "out"
+required = true

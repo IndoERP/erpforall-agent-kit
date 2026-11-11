@@ -1,0 +1,2 @@
+$ python3 tools/addon-graph.py --addons-path examples/addons summary
+addon graph: 2 addons, 4 models, 13 fields, 0 rpc_methods, 8 views, 4 menus, 3 actions, 4 access_rows, 8 other_records, 0 not_understood

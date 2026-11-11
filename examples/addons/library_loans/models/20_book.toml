@@ -1,0 +1,10 @@
+# The loans of a book, added to the book model of the library addon.
+[[model]]
+extend = "library.book"
+
+[[model.field]]
+name = "loan_ids"
+type = "one2many"
+comodel = "library_loans.loan"
+inverse = "book_id"
+string = "Loans"

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<erp>
+    <!-- Invented authors and books; no real people or titles. -->
+    <record id="author_demo_halden" model="library.author">
+        <field name="name">Mira Halden</field>
+        <field name="country">Examplia</field>
+    </record>
+    <record id="author_demo_okoro" model="library.author">
+        <field name="name">Teo Okoro</field>
+        <field name="country">Samplestan</field>
+    </record>
+    <record id="book_demo_lantern" model="library.book">
+        <field name="name">The Lantern Atlas</field>
+        <field name="description">A fictional atlas of imaginary harbours.</field>
+        <field name="author_id" ref="author_demo_halden"/>
+        <field name="genre_ids" eval="[(4, ref('genre_fiction'), 0)]"/>
+    </record>
+    <record id="book_demo_tides" model="library.book">
+        <field name="name">A Short Guide to Tides</field>
+        <field name="description">A made-up handbook for sample data.</field>
+        <field name="author_id" ref="author_demo_okoro"/>
+        <field name="genre_ids" eval="[(4, ref('genre_non_fiction'), 0), (4, ref('genre_reference'), 0)]"/>
+    </record>
+</erp>

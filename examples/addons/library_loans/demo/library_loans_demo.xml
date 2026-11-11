@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<erp>
+    <record id="loan_demo_lantern" model="library_loans.loan">
+        <field name="book_id" ref="library.book_demo_lantern"/>
+        <field name="borrower">Sample Borrower One</field>
+        <field name="loan_date">2026-01-15</field>
+        <field name="state">out</field>
+    </record>
+</erp>

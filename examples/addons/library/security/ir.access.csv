@@ -1,0 +1,4 @@
+id,name,model_id/id,group_id/id,operation,domain
+access_library_book_user,Books for internal users,library.model_library_book,base.group_user,crud,
+access_library_author_user,Authors for internal users,library.model_library_author,base.group_user,crud,
+access_library_genre_user,Genres for internal users,library.model_library_genre,base.group_user,crud,

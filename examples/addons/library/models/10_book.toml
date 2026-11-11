@@ -1,0 +1,30 @@
+# Book records of the Library addon.
+[[model]]
+name = "library.book"
+description = "Book"
+order = "name, id"
+
+[[model.field]]
+name = "name"
+type = "char"
+string = "Title"
+required = true
+index = true
+
+[[model.field]]
+name = "description"
+type = "text"
+string = "Description"
+
+[[model.field]]
+name = "author_id"
+type = "many2one"
+comodel = "library.author"
+string = "Author"
+ondelete = "restrict"
+
+[[model.field]]
+name = "genre_ids"
+type = "many2many"
+comodel = "library.genre"
+string = "Genres"

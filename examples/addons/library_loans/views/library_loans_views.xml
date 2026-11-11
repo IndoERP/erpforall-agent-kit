@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<erp>
+    <record id="library_loans_loan_list" model="ir.ui.view">
+        <field name="name">library_loans.loan.list</field>
+        <field name="model">library_loans.loan</field>
+        <field name="arch" type="xml">
+            <list string="Loans">
+                <field name="book_id"/>
+                <field name="borrower"/>
+                <field name="loan_date"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="library_loans_loan_form" model="ir.ui.view">
+        <field name="name">library_loans.loan.form</field>
+        <field name="model">library_loans.loan</field>
+        <field name="arch" type="xml">
+            <form string="Loan">
+                <sheet>
+                    <group>
+                        <field name="book_id"/>
+                        <field name="borrower"/>
+                        <field name="loan_date"/>
+                        <field name="state"/>
+                    </group>
+                </sheet>
+                <aside>
+                    <group string="Record information">
+                        <field name="create_uid" readonly="1"/>
+                        <field name="create_date" readonly="1"/>
+                        <field name="write_uid" readonly="1"/>
+                        <field name="write_date" readonly="1"/>
+                    </group>
+                </aside>
+            </form>
+        </field>
+    </record>
+    <record id="library_book_form_loans" model="ir.ui.view">
+        <field name="name">library.book.form.loans</field>
+        <field name="model">library.book</field>
+        <field name="inherit_id" ref="library.library_book_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page name="loans" string="Loans">
+                    <field name="loan_ids"/>
+                </page>
+            </xpath>
+        </field>
+    </record>
+    <record id="library_loans_loan_action" model="ir.actions.act_window">
+        <field name="name">Loans</field>
+        <field name="res_model">library_loans.loan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="library_loans_loan_menu" name="Loans" parent="library.library_menu" action="library_loans_loan_action" sequence="30"/>
+</erp>

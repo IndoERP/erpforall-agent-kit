@@ -1,0 +1,830 @@
+{
+ "edges": [
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "menu:library.library_author_menu",
+   "kind": "child_of",
+   "line": 103,
+   "to": "menu:library.library_menu"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "menu:library.library_book_menu",
+   "kind": "child_of",
+   "line": 102,
+   "to": "menu:library.library_menu"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "menu:library_loans.library_loans_loan_menu",
+   "kind": "child_of",
+   "line": 56,
+   "to": "menu:library.library_menu"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "from": "addon:library",
+   "kind": "defines",
+   "line": 2,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "addon:library",
+   "kind": "defines",
+   "line": 2,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/models/30_genre.toml",
+   "from": "addon:library",
+   "kind": "defines",
+   "line": 2,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "addon:library_loans",
+   "kind": "defines",
+   "line": 2,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library_loans/manifest.toml",
+   "from": "addon:library_loans",
+   "kind": "depends_on",
+   "line": 1,
+   "to": "addon:library"
+  },
+  {
+   "file": "examples/addons/library_loans/models/20_book.toml",
+   "from": "addon:library_loans",
+   "kind": "extends",
+   "line": 2,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "from": "model:library.author",
+   "kind": "has_field",
+   "line": 19,
+   "to": "field:library.author.book_ids"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "from": "model:library.author",
+   "kind": "has_field",
+   "line": 14,
+   "to": "field:library.author.country"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "from": "model:library.author",
+   "kind": "has_field",
+   "line": 7,
+   "to": "field:library.author.name"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "model:library.book",
+   "kind": "has_field",
+   "line": 19,
+   "to": "field:library.book.author_id"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "model:library.book",
+   "kind": "has_field",
+   "line": 14,
+   "to": "field:library.book.description"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "model:library.book",
+   "kind": "has_field",
+   "line": 26,
+   "to": "field:library.book.genre_ids"
+  },
+  {
+   "file": "examples/addons/library_loans/models/20_book.toml",
+   "from": "model:library.book",
+   "kind": "has_field",
+   "line": 5,
+   "to": "field:library.book.loan_ids"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "model:library.book",
+   "kind": "has_field",
+   "line": 7,
+   "to": "field:library.book.name"
+  },
+  {
+   "file": "examples/addons/library/models/30_genre.toml",
+   "from": "model:library.genre",
+   "kind": "has_field",
+   "line": 7,
+   "to": "field:library.genre.name"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "model:library_loans.loan",
+   "kind": "has_field",
+   "line": 7,
+   "to": "field:library_loans.loan.book_id"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "model:library_loans.loan",
+   "kind": "has_field",
+   "line": 15,
+   "to": "field:library_loans.loan.borrower"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "model:library_loans.loan",
+   "kind": "has_field",
+   "line": 21,
+   "to": "field:library_loans.loan.loan_date"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "model:library_loans.loan",
+   "kind": "has_field",
+   "line": 26,
+   "to": "field:library_loans.loan.state"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_book_form_loans",
+   "kind": "inherits",
+   "line": 39,
+   "to": "view:library.library_book_form"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "menu:library.library_author_menu",
+   "kind": "opens",
+   "line": 103,
+   "to": "action:library.library_author_action"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "menu:library.library_book_menu",
+   "kind": "opens",
+   "line": 102,
+   "to": "action:library.library_book_action"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "menu:library_loans.library_loans_loan_menu",
+   "kind": "opens",
+   "line": 56,
+   "to": "action:library_loans.library_loans_loan_action"
+  },
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "from": "access:access_library_author_user",
+   "kind": "refers_to",
+   "line": 3,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "from": "access:access_library_book_user",
+   "kind": "refers_to",
+   "line": 2,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "from": "access:access_library_genre_user",
+   "kind": "refers_to",
+   "line": 4,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library_loans/security/ir.access.csv",
+   "from": "access:access_library_loans_loan_user",
+   "kind": "refers_to",
+   "line": 2,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "action:library.library_author_action",
+   "kind": "refers_to",
+   "line": 96,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "action:library.library_book_action",
+   "kind": "refers_to",
+   "line": 90,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "action:library_loans.library_loans_loan_action",
+   "kind": "refers_to",
+   "line": 51,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "from": "record:library.author_demo_halden",
+   "kind": "refers_to",
+   "line": 4,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "from": "record:library.author_demo_okoro",
+   "kind": "refers_to",
+   "line": 8,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "from": "record:library.book_demo_lantern",
+   "kind": "refers_to",
+   "line": 12,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "from": "record:library.book_demo_tides",
+   "kind": "refers_to",
+   "line": 18,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "from": "record:library.genre_fiction",
+   "kind": "refers_to",
+   "line": 4,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "from": "record:library.genre_non_fiction",
+   "kind": "refers_to",
+   "line": 7,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "from": "record:library.genre_reference",
+   "kind": "refers_to",
+   "line": 10,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library_loans/demo/library_loans_demo.xml",
+   "from": "record:library_loans.loan_demo_lantern",
+   "kind": "refers_to",
+   "line": 3,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_form",
+   "kind": "refers_to",
+   "line": 63,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_list",
+   "kind": "refers_to",
+   "line": 53,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_form",
+   "kind": "refers_to",
+   "line": 14,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_list",
+   "kind": "refers_to",
+   "line": 3,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_search",
+   "kind": "refers_to",
+   "line": 42,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_book_form_loans",
+   "kind": "refers_to",
+   "line": 39,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_form",
+   "kind": "refers_to",
+   "line": 15,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_list",
+   "kind": "refers_to",
+   "line": 3,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "from": "field:library.author.book_ids",
+   "kind": "relates_to",
+   "line": 19,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "field:library.book.author_id",
+   "kind": "relates_to",
+   "line": 19,
+   "to": "model:library.author"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "from": "field:library.book.genre_ids",
+   "kind": "relates_to",
+   "line": 26,
+   "to": "model:library.genre"
+  },
+  {
+   "file": "examples/addons/library_loans/models/20_book.toml",
+   "from": "field:library.book.loan_ids",
+   "kind": "relates_to",
+   "line": 5,
+   "to": "model:library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "from": "field:library_loans.loan.book_id",
+   "kind": "relates_to",
+   "line": 7,
+   "to": "model:library.book"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_form",
+   "kind": "uses_field",
+   "line": 63,
+   "to": "field:library.author.book_ids"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_form",
+   "kind": "uses_field",
+   "line": 63,
+   "to": "field:library.author.country"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_form",
+   "kind": "uses_field",
+   "line": 63,
+   "to": "field:library.author.name"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_list",
+   "kind": "uses_field",
+   "line": 53,
+   "to": "field:library.author.country"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_author_list",
+   "kind": "uses_field",
+   "line": 53,
+   "to": "field:library.author.name"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_form",
+   "kind": "uses_field",
+   "line": 14,
+   "to": "field:library.book.author_id"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_form",
+   "kind": "uses_field",
+   "line": 14,
+   "to": "field:library.book.description"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_form",
+   "kind": "uses_field",
+   "line": 14,
+   "to": "field:library.book.genre_ids"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_form",
+   "kind": "uses_field",
+   "line": 14,
+   "to": "field:library.book.name"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library.book.author_id"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library.book.genre_ids"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library.book.name"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_search",
+   "kind": "uses_field",
+   "line": 42,
+   "to": "field:library.book.author_id"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_search",
+   "kind": "uses_field",
+   "line": 42,
+   "to": "field:library.book.genre_ids"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "from": "view:library.library_book_search",
+   "kind": "uses_field",
+   "line": 42,
+   "to": "field:library.book.name"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_book_form_loans",
+   "kind": "uses_field",
+   "line": 39,
+   "to": "field:library.book.loan_ids"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_form",
+   "kind": "uses_field",
+   "line": 15,
+   "to": "field:library_loans.loan.book_id"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_form",
+   "kind": "uses_field",
+   "line": 15,
+   "to": "field:library_loans.loan.borrower"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_form",
+   "kind": "uses_field",
+   "line": 15,
+   "to": "field:library_loans.loan.loan_date"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_form",
+   "kind": "uses_field",
+   "line": 15,
+   "to": "field:library_loans.loan.state"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library_loans.loan.book_id"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library_loans.loan.borrower"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library_loans.loan.loan_date"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "from": "view:library_loans.library_loans_loan_list",
+   "kind": "uses_field",
+   "line": 3,
+   "to": "field:library_loans.loan.state"
+  }
+ ],
+ "format": "addon-graph/1",
+ "nodes": [
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "kind": "access",
+   "line": 3,
+   "name": "access_library_author_user"
+  },
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "kind": "access",
+   "line": 2,
+   "name": "access_library_book_user"
+  },
+  {
+   "file": "examples/addons/library/security/ir.access.csv",
+   "kind": "access",
+   "line": 4,
+   "name": "access_library_genre_user"
+  },
+  {
+   "file": "examples/addons/library_loans/security/ir.access.csv",
+   "kind": "access",
+   "line": 2,
+   "name": "access_library_loans_loan_user"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "action",
+   "line": 96,
+   "name": "library.library_author_action"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "action",
+   "line": 90,
+   "name": "library.library_book_action"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "kind": "action",
+   "line": 51,
+   "name": "library_loans.library_loans_loan_action"
+  },
+  {
+   "file": "examples/addons/library/manifest.toml",
+   "kind": "addon",
+   "line": 1,
+   "name": "library"
+  },
+  {
+   "file": "examples/addons/library_loans/manifest.toml",
+   "kind": "addon",
+   "line": 1,
+   "name": "library_loans"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "kind": "field",
+   "line": 19,
+   "name": "library.author.book_ids"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "kind": "field",
+   "line": 14,
+   "name": "library.author.country"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "kind": "field",
+   "line": 7,
+   "name": "library.author.name"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "kind": "field",
+   "line": 19,
+   "name": "library.book.author_id"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "kind": "field",
+   "line": 14,
+   "name": "library.book.description"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "kind": "field",
+   "line": 26,
+   "name": "library.book.genre_ids"
+  },
+  {
+   "file": "examples/addons/library_loans/models/20_book.toml",
+   "kind": "field",
+   "line": 5,
+   "name": "library.book.loan_ids"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "kind": "field",
+   "line": 7,
+   "name": "library.book.name"
+  },
+  {
+   "file": "examples/addons/library/models/30_genre.toml",
+   "kind": "field",
+   "line": 7,
+   "name": "library.genre.name"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "kind": "field",
+   "line": 7,
+   "name": "library_loans.loan.book_id"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "kind": "field",
+   "line": 15,
+   "name": "library_loans.loan.borrower"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "kind": "field",
+   "line": 21,
+   "name": "library_loans.loan.loan_date"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "kind": "field",
+   "line": 26,
+   "name": "library_loans.loan.state"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "menu",
+   "line": 103,
+   "name": "library.library_author_menu"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "menu",
+   "line": 102,
+   "name": "library.library_book_menu"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "menu",
+   "line": 101,
+   "name": "library.library_menu"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "kind": "menu",
+   "line": 56,
+   "name": "library_loans.library_loans_loan_menu"
+  },
+  {
+   "file": "examples/addons/library/models/20_author.toml",
+   "kind": "model",
+   "line": 2,
+   "name": "library.author"
+  },
+  {
+   "file": "examples/addons/library/models/10_book.toml",
+   "kind": "model",
+   "line": 2,
+   "name": "library.book"
+  },
+  {
+   "file": "examples/addons/library/models/30_genre.toml",
+   "kind": "model",
+   "line": 2,
+   "name": "library.genre"
+  },
+  {
+   "file": "examples/addons/library_loans/models/10_loan.toml",
+   "kind": "model",
+   "line": 2,
+   "name": "library_loans.loan"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "kind": "record",
+   "line": 4,
+   "name": "library.author_demo_halden"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "kind": "record",
+   "line": 8,
+   "name": "library.author_demo_okoro"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "kind": "record",
+   "line": 12,
+   "name": "library.book_demo_lantern"
+  },
+  {
+   "file": "examples/addons/library/demo/library_demo.xml",
+   "kind": "record",
+   "line": 18,
+   "name": "library.book_demo_tides"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "kind": "record",
+   "line": 4,
+   "name": "library.genre_fiction"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "kind": "record",
+   "line": 7,
+   "name": "library.genre_non_fiction"
+  },
+  {
+   "file": "examples/addons/library/data/library_data.xml",
+   "kind": "record",
+   "line": 10,
+   "name": "library.genre_reference"
+  },
+  {
+   "file": "examples/addons/library_loans/demo/library_loans_demo.xml",
+   "kind": "record",
+   "line": 3,
+   "name": "library_loans.loan_demo_lantern"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "view",
+   "line": 63,
+   "name": "library.library_author_form"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "view",
+   "line": 53,
+   "name": "library.library_author_list"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "view",
+   "line": 14,
+   "name": "library.library_book_form"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "view",
+   "line": 3,
+   "name": "library.library_book_list"
+  },
+  {
+   "file": "examples/addons/library/views/library_views.xml",
+   "kind": "view",
+   "line": 42,
+   "name": "library.library_book_search"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "kind": "view",
+   "line": 39,
+   "name": "library_loans.library_book_form_loans"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "kind": "view",
+   "line": 15,
+   "name": "library_loans.library_loans_loan_form"
+  },
+  {
+   "file": "examples/addons/library_loans/views/library_loans_views.xml",
+   "kind": "view",
+   "line": 3,
+   "name": "library_loans.library_loans_loan_list"
+  }
+ ],
+ "not_understood": []
+}

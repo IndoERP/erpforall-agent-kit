@@ -1,0 +1,24 @@
+# Authors of the library's books.
+[[model]]
+name = "library.author"
+description = "Author"
+order = "name, id"
+
+[[model.field]]
+name = "name"
+type = "char"
+string = "Name"
+required = true
+index = true
+
+[[model.field]]
+name = "country"
+type = "char"
+string = "Country"
+
+[[model.field]]
+name = "book_ids"
+type = "one2many"
+comodel = "library.book"
+inverse = "author_id"
+string = "Books"

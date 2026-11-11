@@ -1,0 +1,12 @@
+$ python3 tools/addon-graph.py --addons-path examples/addons impact examples/addons/library/models/10_book.toml
+impact of 1 file(s): addons library; addons that depend on them: library_loans
+models in these files: library.book
+  view library.library_book_form (examples/addons/library/views/library_views.xml:14) shows library.book
+  view library.library_book_list (examples/addons/library/views/library_views.xml:3) shows library.book
+  view library.library_book_search (examples/addons/library/views/library_views.xml:42) shows library.book
+  view library_loans.library_book_form_loans (examples/addons/library_loans/views/library_loans_views.xml:39) shows library.book
+  action library.library_book_action (examples/addons/library/views/library_views.xml:90) opens library.book
+  access row access_library_book_user (examples/addons/library/security/ir.access.csv:2) grants library.book
+  field library.author.book_ids (examples/addons/library/models/20_author.toml:19) points at library.book
+  field library_loans.loan.book_id (examples/addons/library_loans/models/10_loan.toml:7) points at library.book
+check again: addon-lint.py <addons path>/library; addon-lint.py <addons path>/library_loans   (the kit's lint tool; the framework's own loader is the authority)
