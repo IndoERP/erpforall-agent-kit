@@ -50,7 +50,7 @@ each vendor's documentation, and what is unconfirmed, is in [docs/agent-support.
 
 ## Tools
 
-Python 3.11+, standard library only.
+Python 3.10+, standard library only.
 
 - `tools/new-addon.py <name> [--dest addons]` (command `erpforall-new-addon`): scaffolds a data-only addon in the
   layout of the framework's `sample_library` example (manifest, one model, access rows, list and form views, action,

@@ -14,7 +14,7 @@ This repository is a kit of skills and tools for people who build ERPForAll addo
   equals the `name` in the frontmatter.
 - No secrets, internal host names, team-process details, personal names or e-mail addresses. Mention other ERP products
   only in `erpforall-for-odoo-developers`.
-- Tools use Python 3.11+ and the standard library only, and each has unit tests in `tests/`.
+- Tools use Python 3.10+ and the standard library only, and each has unit tests in `tests/`.
 - Before finishing, run:
   ```bash
   python3 -I -m unittest discover -s tests

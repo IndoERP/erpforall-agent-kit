@@ -190,6 +190,19 @@ class CommandTests(Base):
             os.chdir(old)
 
 
+class TomlTests(unittest.TestCase):
+    def test_subset_reader_matches_tomllib_and_fails_loudly(self):
+        doc = 'a = "x"\nn = [1, 2.5, true]\nt = { k = "v" }\n[[m]]\nname = "one"\n[m.s]\nz = 1\n'
+        mini = graph._mini_toml(doc)
+        self.assertEqual(mini, {"a": "x", "n": [1, 2.5, True], "t": {"k": "v"}, "m": [{"name": "one", "s": {"z": 1}}]})
+        if graph._tomllib is None:
+            self.skipTest("tomllib is not available on this Python (3.10): no reference reader to compare with")
+        self.assertEqual(mini, graph._tomllib.loads(doc))
+        for bad in ("d = 1979-05-27", "x = @", "x = [1"):
+            with self.assertRaises(graph.TomlError):
+                graph._mini_toml(bad)
+
+
 class LexerTests(unittest.TestCase):
     def test_comments_and_strings(self):
         text = 'a // c {\nb "x}" /* y { */ c\'{\''

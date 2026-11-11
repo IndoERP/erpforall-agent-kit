@@ -37,6 +37,6 @@ A skill is only useful if an agent can trust it. So:
 
 ## Tools
 
-`tools/*.py` use Python 3.11+ and the standard library only. Add a unit test for every check you add to
+`tools/*.py` use Python 3.10+ and the standard library only. Add a unit test for every check you add to
 `addon-lint.py`, including a case that must pass and a case that must fail, and make sure the real example addons
 (for example `sample_library`) still lint clean.
