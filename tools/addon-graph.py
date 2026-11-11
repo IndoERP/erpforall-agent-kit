@@ -452,7 +452,8 @@ def build(paths: list[Path]) -> Graph:
     for name, a in sorted(g.addons.items()):
         d = Path(a["dir"])
         for f in sorted(d.rglob("*.xml")):
-            read_xml(g, name, f)
+            if not f.name.startswith("."):
+                read_xml(g, name, f)
         for f in sorted(d.rglob("*.csv")):
             read_access(g, name, f)
     return g
@@ -639,10 +640,14 @@ def read_xml(g: Graph, addon: str, f: Path) -> None:
 
 
 def read_access(g: Graph, addon: str, f: Path) -> None:
-    if "access" not in f.name:
+    if "access" not in f.name or f.name.startswith("."):
         return
     p = f.as_posix()
-    rows = list(csv.reader(io.StringIO(f.read_text(encoding="utf-8", errors="replace"))))
+    try:
+        rows = list(csv.reader(io.StringIO(f.read_text(encoding="utf-8", errors="replace"))))
+    except csv.Error as e:
+        g.bad(p, 1, f"csv does not parse: {e}")
+        return
     if not rows:
         return
     head = [h.replace("/id", ":id") for h in rows[0]]

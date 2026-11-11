@@ -180,6 +180,16 @@ class CommandTests(Base):
         code, out = self.run_cli("context", "list the items")  # `list` must not match a longer word
         self.assertNotIn("shop.order", out)
 
+    def test_macos_resource_fork_files_are_ignored(self):
+        bad = self.ws / "addons/shop/security/._ir.access.csv"
+        bad.write_bytes(b"\x00\x05\x16\x07")
+        try:
+            code, out = self.run_cli("summary")
+            self.assertEqual(code, 0)
+            self.assertIn("1 access_rows", out)
+        finally:
+            bad.unlink()
+
     def test_usage_error_without_addons(self):
         import os
         old = os.getcwd(); os.chdir(self.d)
