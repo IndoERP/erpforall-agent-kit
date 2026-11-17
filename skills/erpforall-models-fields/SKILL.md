@@ -113,7 +113,7 @@ A value an administrator or operator may change (a limit, an interval, a default
 
 ## Not covered here
 
-Delegation (`inherits`), partitioned models, translated fields, money/currency handling, exclusion constraints and range types, sequences, onchange on x2many lines, columns only the owner may add (`owner_only_stored_fields`), notifying the ORM after your own SQL (`modified_external`): see `models.md`, `money-currency.md`, `translated-fields.md`, `exclusions.md`, `sequences.md`. Tracking is in the `erpforall-chatter` skill (`tracking.md`).
+Delegation (`inherits`), partitioned models, translated fields, money/currency handling, exclusion constraints and range types, sequences (`sequences.md`; one rule to know: numbering an addon creates while the server runs must be gapless, `implementation = 'no_gap'`, because a deployed server may not create database sequences then; numbering created by an install or upgrade may stay standard), onchange on x2many lines, columns only the owner may add (`owner_only_stored_fields`), notifying the ORM after your own SQL (`modified_external`): see `models.md`, `money-currency.md`, `translated-fields.md`, `exclusions.md`, `sequences.md`. Tracking is in the `erpforall-chatter` skill (`tracking.md`).
 
 ## Sources
 
@@ -122,6 +122,7 @@ Delegation (`inherits`), partitioned models, translated fields, money/currency h
 - docs/addon-guide/models.md
 - docs/addon-guide/binary-image-fields.md
 - docs/addon-guide/company-dependent-fields.md
+- docs/addon-guide/sequences.md
 - docs/addon-guide/rpc.md
 - crates/erp-modules/src/model_files.rs
 - addons/sample_library/models/20_book.toml

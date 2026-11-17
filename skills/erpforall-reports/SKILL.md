@@ -122,6 +122,15 @@ Only a closed vocabulary is accepted; anything else is an error naming the token
   `src`. A `src` path or an external URL is refused: printing fetches nothing.
 - A report that stores its PDF as an attachment (an `attachment` expression) refuses a template that prints a
   group-restricted field unless `allow_attachment_group_fields` is set on the action.
+- Page breaks: `thead` rows repeat on every page. A row, a note, the totals and the signatures stay on one page,
+  except one estimated taller than half the page body (a very long description), which may break so nothing runs
+  past the margin.
+- A document prints in the printing user's language formats (date, time, decimal point, grouping) and timezone; a
+  background print uses those of the user who asked for it. Translated template terms are not loaded yet: labels and
+  text print as written. A translation is text and is never evaluated (`{{ }}` in a term prints as written).
+- Records are read with the user's rights. One exception, as on a form: a many2one printed only by its display name
+  (`t-field="o.user_id"`) prints that name even when the user may not open the target; any other field of the
+  target (`o.user_id.email`) needs read access to it.
 
 ## 4. Printing and its settings
 
