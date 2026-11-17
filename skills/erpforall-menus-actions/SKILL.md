@@ -39,6 +39,8 @@ description: Add menus and window actions to an ERPForAll addon - ir.actions.act
 </record>
 ```
 
+- **Defaults for new records** go in the action's `context`, a literal dictionary of at most 16 `default_<field>` keys naming fields of `res_model`, each a text, a boolean or an integer (`<field name="context">{'default_move_type': 'out_invoice'}</field>`). Refused by name when the action loads: expressions (`uid`, `context.get(...)`), lists, negative numbers, a key naming no field or a readonly, computed, related or x2many field, session keys such as `allowed_company_ids`, and `search_default_<name>` (not delivered yet). Dates are `YYYY-MM-DD` text.
+
 ## `<menuitem>` rules
 
 - A nested `<menuitem>` takes the enclosing menu as its parent (do not write `parent`); a standalone submenu may use `parent="other_menu_id"` (seen in `acceptance_notes`: `parent="notes_menu"`).
@@ -50,7 +52,7 @@ description: Add menus and window actions to an ERPForAll addon - ir.actions.act
 
 ## Other action types
 
-`ir.actions.act_url`, `ir.actions.client`, `ir.actions.server` exist and share one id space with window actions. Server actions run with the caller's rights unless an administrator sets `run_as_superuser`. To show an addon's own settings page, `acceptance_notes` declares a form on `ir.config.setting` with `<widget name="web.settings" scope_kinds="global,company" app="acceptance_notes"/>` and a window action over it; copy that file's last records rather than inventing the pattern.
+`ir.actions.act_url`, `ir.actions.client`, `ir.actions.server` and `ir.actions.report` exist and share one id space with window actions. Server actions (including `code` actions, sandboxed Luau scripts) run with the caller's rights unless an administrator sets `run_as_superuser`; `object_copy` and `webhook` are not available yet. Report actions: skill `erpforall-reports`. To show an addon's own settings page, `acceptance_notes` declares a form on `ir.config.setting` with `<widget name="web.settings" scope_kinds="global,company" app="acceptance_notes"/>` and a window action over it; copy that file's last records rather than inventing the pattern; declaring the settings themselves is in the `erpforall-settings` skill.
 
 ## Not covered here
 
@@ -64,3 +66,4 @@ Contextual (binding) actions (`binding_model_id`, `binding_type`), server-action
 - addons/contacts/views/contacts_views.xml
 - addons/sample_library/views/sample_library_views.xml
 - addons/acceptance_notes/views/acceptance_notes_views.xml
+- addons/account/views/account_invoice_views.xml
