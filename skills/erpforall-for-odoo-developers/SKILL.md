@@ -1,6 +1,6 @@
 ---
 name: erpforall-for-odoo-developers
-description: Map Odoo concepts to ERPForAll - manifest, models, inheritance, api decorators, access rows and rules, views, data files, server actions, RPC - and the places where ERPForAll deliberately differs or fails loudly. Use when the user knows Odoo and asks how to do something the ERPForAll way.
+description: Map Odoo concepts to ERPForAll - manifest, models, inheritance, api decorators, access rows and rules, views, data files, server actions, RPC, tracking, properties, settings, sudo, reports - and the places where ERPForAll deliberately differs or fails loudly. Use when the user knows Odoo and asks how to do something the ERPForAll way.
 ---
 
 # ERPForAll for Odoo developers
@@ -27,7 +27,12 @@ ERPForAll is an ERP framework in Rust that keeps the Odoo mental model (addons t
 | XML/CSV data files, `noupdate` | Same, with stricter reading: only documented elements and attributes, file and line in errors. |
 | Server actions with `state='code'` | Sandboxed Luau scripts; all server actions run with the caller's rights unless an administrator sets `run_as_superuser`. |
 | `call_kw` JSON-RPC | JSON-2: `POST /json/2/<model>/<method>` with explicit `#[rpc(effect = ...)]` methods; private by default. |
-| `wkhtmltopdf` reports | Native report engine (details outside this skill). |
+| `tracking=True`, chatter history | `tracking = true` on the field; `mail` writes the creation line and change lines itself (`erpforall-chatter`). |
+| `fields.Binary`, `fields.Image`, `image.mixin` | `#[field(binary)]`, `#[field(image, max_width = ..., max_height = ...)]` as `Option<Blob>`; `ImageMixin` (native only). |
+| Properties (`company_dependent=True`) | `company_dependent = true` on the field; fallbacks come from `ir.default` (native only). |
+| `res.config.settings`, `ir.config_parameter` | Declared `SettingDecl` (Settings page) and `ParameterDecl` (System Parameters), each with a default, floor and bound (`erpforall-settings`). |
+| `sudo()` in business code | A scoped, audited block, `tx.elevated(env, reason, scope, body)`, that names the models and operations it needs (`erpforall-security`). |
+| QWeb reports and `wkhtmltopdf` | QWeb `<template>` records plus `ir.actions.report`, checked against a closed print profile and printed by a native engine with no headless browser (`erpforall-reports`). |
 
 ## Differences that fail loudly
 
@@ -37,6 +42,8 @@ ERPForAll is an ERP framework in Rust that keeps the Odoo mental model (addons t
 - RPC: methods are private unless exposed with `#[rpc]`; an `effect = read` method that writes fails.
 - Install, upgrade and uninstall are one PostgreSQL transaction, not one per module.
 - Access: company membership is validated under every elevation; companies and `user` values in rule domains are compiled into SQL parameters, so a rule can only use the documented forms (`user.id`, `company_ids`, user paths, literal sub-searches).
+- `with_user(other_user)` needs the capability `principal.impersonate` (or the `System` principal); `with_user` of the superuser from any other principal is refused.
+- A concrete company-scoped model must declare `company_access`; the registry refuses it otherwise.
 - Company checks are on by default for company-scoped many2one/many2many fields (opt out with `check_company = false`).
 - Result rows: reading a missing key is an error, not `None`.
 - `view_mode` must not contain spaces or repeats.
@@ -59,3 +66,10 @@ A list of every Odoo model or view the framework implements; the platform's road
 - docs/addon-guide/data-files.md
 - docs/addon-guide/views.md
 - docs/addon-guide/models.md
+- docs/addon-guide/mail.md
+- docs/addon-guide/binary-image-fields.md
+- docs/addon-guide/company-dependent-fields.md
+- docs/addon-guide/settings.md
+- docs/addon-guide/access.md
+- docs/addon-guide/company-consistency.md
+- docs/addon-guide/reports.md
