@@ -29,6 +29,7 @@ Root is `<erp>` (legacy `<odoo>`, `<openerp>`, `<data>` still read). Inside: `re
 - One2many children: `<field name="line_ids"><record ...>` creates the parent first, then each child with the inverse set.
 - Comments inside plain text values, DOCTYPE and custom entities are refused.
 - `<function model="..." name="..."/>` calls a method; see `data-functions.md`.
+- `<menuitem>` and view records need the `ir.ui.menu` and `ir.ui.view` models of `base`: a module that does not depend on `base` fails loading with an error naming the missing model.
 
 ## noupdate and upgrades
 
@@ -45,6 +46,7 @@ The framework's own base addons ship default records for every model they define
 ## Demo data
 
 - Declare `demo = ["demo/book_demo.xml"]` next to `data`; files load after all `data` files, in order, as if wrapped in `<erp noupdate="1">`.
+- The demo choice belongs to the database, made once at `erp db init --with-demo` (default `--without-demo`) and never switched off; `erp module install --with-demo` on a database without demo data loads the demo data of every installed addon first.
 - Demo loads only when every dependency has demo data; all demo files of one module load in one savepoint, and a failure installs the module without demo data and reports `DemoFailed`.
 - Invent the content: fictional names, `example.com` addresses, fictional phone numbers. Give every record an external id (`partner_demo_...`). A company partner is a root partner with `vat`; people are children via `parent_id`.
 
@@ -57,6 +59,7 @@ The framework's own base addons ship default records for every model they define
 - docs/addon-guide/data-files.md
 - docs/addon-guide/demo-data.md
 - docs/addon-guide/data-only-addon.md
+- docs/addon-guide/cli.md
 - addons/contacts/demo/contacts_demo.xml
 - addons/sample_library/demo/sample_library_demo.xml
 - addons/uom/data/uom_data.xml
