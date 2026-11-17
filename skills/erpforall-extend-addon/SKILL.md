@@ -25,6 +25,11 @@ Native: `#[extend(Book)] pub struct BookIsbn { #[field(char, size = 13)] pub isb
 
 Fields added to a model get columns at install and upgrade. A required field needs a default when the table already has rows, or the schema update stops and changes nothing.
 
+- Re-declaring a field with one attribute changes only that attribute (a bridge re-declares a field with `tracking = true` alone; see `erpforall-chatter`).
+- New selection values from a native extension: `#[field(selection, selection_add = [("archived", "Archived")], ondelete = [("archived", "set default")])]`; the policies are `set null`, `cascade` and `set default` (which needs a declared default), and a required selection must pick a non-null policy.
+- A model declared with `owner_only_stored_fields` accepts new columns only from its owner and the co-owners it names: your extension may add only fields without a column of their own (non-stored computed or related, one2many, a many2many on its own relation table) and is refused with a `Programming` error naming the owner otherwise. Keep extra data in a companion model of your own.
+- To give another addon's model a chatter without making that addon depend on `mail`, write a bridge addon with `auto_install = true` (skill `erpforall-chatter`).
+
 ## 2. A view that inherits
 
 ```xml
@@ -62,7 +67,7 @@ Overrides run newest first in load order (dependency depth, then name); several 
 
 ## Not covered here
 
-Adding values to an existing selection with `selection_add` and `ondelete` policies beyond the TOML keys, extending a table that already holds many rows (`models.md`, "Extending a table that already holds many rows"), custom `x_` fields created at runtime for one database (`cross-addon-extension.md`).
+Replacement values and callbacks for selection cleanup (the lower-level registry API of `cross-addon-extension.md`), extending a table that already holds many rows (`models.md`, "Extending a table that already holds many rows"), custom `x_` fields created at runtime for one database (`cross-addon-extension.md`).
 
 ## Sources
 
