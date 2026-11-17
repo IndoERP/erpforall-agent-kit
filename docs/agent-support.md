@@ -44,7 +44,7 @@ https://developers.openai.com/codex/guides/agents-md)
 
 Kit choice: `install.sh --agent codex` links the folders into `~/.agents/skills` (or `<project>/.agents/skills`).
 Fallback that certainly works even if skills are not picked up: `install.sh --agents-md` writes a marked block into
-the project's `AGENTS.md` that lists the skill files by absolute path; the block is about 5 KiB, well under the
+the project's `AGENTS.md` that lists the skill files by absolute path; the block is about 7 KiB, well under the
 32 KiB cap.
 
 ## Antigravity and Gemini CLI

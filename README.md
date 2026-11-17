@@ -2,7 +2,7 @@
 
 Skills and three small tools that help an AI coding agent build correct ERPForAll
 addons: manifest and layout, models and fields, views, menus and actions, access control, data files, tests, client
-extensions and the chatter. It works with Claude Code, OpenAI Codex CLI and Google Antigravity / Gemini CLI from one
+extensions, the chatter, reports, settings, attachments and WebAssembly packages. It works with Claude Code, OpenAI Codex CLI and Google Antigravity / Gemini CLI from one
 set of skill files.
 
 Every skill was written from the framework's addon guide (`docs/addon-guide/`) and its real addons, and ends with a
@@ -37,16 +37,21 @@ each vendor's documentation, and what is unconfirmed, is in [docs/agent-support.
 | Skill | Use it to |
 |---|---|
 | `erpforall-create-addon` | start an addon: manifest, layout, data-only versus native, install into a database |
-| `erpforall-models-fields` | declare models and fields in TOML or with the Rust macros |
-| `erpforall-views` | write list, form and search views and extend views with xpath |
+| `erpforall-models-fields` | declare models and fields in TOML or with the Rust macros, including binary, image and company-dependent fields |
+| `erpforall-views` | write list, form, search, kanban, pivot, graph and calendar views, list dashboards and dashboard cards, and extend views with xpath |
 | `erpforall-menus-actions` | add window actions and menus |
-| `erpforall-security` | access rows, groups, record rules, field access |
+| `erpforall-security` | access rows, groups, record rules, field access, `company_access`, scoped elevation |
 | `erpforall-data-files` | XML and CSV data, `noupdate`, default and demo data |
 | `erpforall-extend-addon` | add fields and screens to another addon without editing it |
 | `erpforall-addon-tests` | lint, install, native Rust tests, component tests |
 | `erpforall-client-extensions` | custom widgets and client code (native addons) |
-| `erpforall-chatter` | messages, followers and activities on a model |
+| `erpforall-chatter` | messages, followers, activities and record history on a model; bridge addons |
+| `erpforall-reports` | declare a report and its action, QWeb templates, the print profile, printed business documents |
+| `erpforall-settings` | settings and system parameters with a default, a floor and a bound |
+| `erpforall-attachments` | store, list, serve and move files that belong to a record (native addons) |
+| `erpforall-wasm-addons` | build, package and install a light addon as a WebAssembly package |
 | `erpforall-for-odoo-developers` | map Odoo concepts to ERPForAll |
+| `erpforall-knowledge-graph` | look up what your own addons define before writing against it |
 
 ## Tools
 
