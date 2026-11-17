@@ -1,6 +1,6 @@
 ---
 name: erpforall-views
-description: Write ERPForAll views - list, form and search XML in ir.ui.view records under the <erp> root, header buttons, groups and notebooks, field widgets, and extending another addon's view with xpath/position inheritance. Use when adding or changing a screen, a column, a filter or a form layout.
+description: Write ERPForAll views - list, form and search XML in ir.ui.view records under the <erp> root, header buttons, groups and notebooks, field widgets, one2many line views, list dashboards and column widths, kanban, pivot, graph and calendar views, dashboard cards, and extending another addon's view with xpath/position inheritance. Use when adding or changing a screen, a column, a filter, a form layout or a board.
 ---
 
 # Views
@@ -70,6 +70,65 @@ Views are `<record model="ir.ui.view">` entries in a data file (listed in the ma
 - Widgets used by the real addons (all via `widget="..."`): `email`, `phone`, `url`, `many2many_tags`, `priority`, `badge`, `percentage`, `color`, `color_picker`, `radio`, `statusbar`, `boolean_toggle`, `boolean_favorite`, `CopyClipboardChar`, `CopyClipboardURL`, `CopyClipboardText`, `statinfo`. An unknown widget or an incompatible field kind fails explicitly.
 - Header buttons: `<button name="submit" type="object" string="Submit" class="btn-primary" confirm="Submit this record?" invisible="phase != 'draft'"/>`. `name` must be an exposed model method; `invisible`/`groups` only hide the button and do **not** authorize the call, so keep the check in the method.
 - Stat buttons live in `<div name="button_box" class="oe_button_box">` as `type="object"` buttons with a `<field widget="statinfo">`.
+- `create="0"`, `edit="0"`, `delete="0"` on a `<list>` or `<form>` root hide New, make the form read-only, or remove Delete.
+- `options="{'enable_formatting': False}"` on an integer or float field (a year, a sequence number) drops the thousands separator. An `html` field uses `widget="html"` (or no widget).
+- **A one2many's lines.** A one2many shows its lines with the comodel's default list (lowest `priority`) and edits a line in the comodel's default form; an inline `<list>` or `<form>` inside the `<field>` is refused ("Field nodes cannot contain children."). When two fields of one form need different line views, name them in a constant `context` with qualified view ids of the comodel (from `account`'s invoice form):
+  ```xml
+  <field name="invoice_line_ids"
+         context="{'list_view_ref': 'account.view_invoice_line_list', 'form_view_ref': 'account.view_invoice_line_form'}"/>
+  ```
+  A name that does not resolve is refused by the server.
+- **Group By in the search menu:** a `<filter>` of the model's default search view whose `context` is `{'group_by': 'field'}` (boolean, char, integer, selection or many2one, stored and readable) is offered as a Group By item: `<filter name="group_city" string="City" context="{'group_by': 'city'}"/>`. The action's own `search_view_id` is not consulted for this yet.
+
+## List extras
+
+```xml
+<list string="Books">
+    <dashboard>
+        <count name="available" string="Available books" filter="available" color="success"/>
+        <count name="unavailable" string="Unavailable books" domain="[('available', '=', False)]"/>
+        <kpi name="pages_added" string="Pages added" field="pages" aggregate="sum" date_field="create_date"/>
+    </dashboard>
+    <field name="title" width="[200px]"/>
+    <field name="pages"/>
+</list>
+```
+
+- `<dashboard>` (one, directly under the list root, addon depends on `web`): a `count` has exactly one `domain` or `filter` (a filter of the action's search view) and an optional `color` (`info`, `success`, `warning`, `danger`); a `kpi` names a stored integer or float `field`, an `aggregate` (`sum`, `avg`, `min`, `max`) and a stored date or datetime `date_field`. Item names are unique letters, digits and underscores. Unknown attributes are refused; reads use the caller's access rights.
+- `width` on a list `<field>`: `"60px"` exact, `"[200px]"` at least, `"[100px,400px]"` between; 1 to 2000 px. Anything else, or `width` outside a list, refuses the view.
+
+## Kanban, pivot, graph, calendar
+
+Each is a view type owned by `web`: the addon's manifest lists `web` in `depends`, and the action lists the type in `view_mode` (`sample_library`'s books use `list,kanban,form,pivot,graph`). No code is needed.
+
+```xml
+<kanban string="Books">
+    <progressbar field="book_format" colors='{"hardcover": "success", "paperback": "info", "ebook": "warning"}'/>
+    <templates>
+        <t t-name="card">
+            <main><field name="title"/><field name="author_id"/></main>
+            <aside><field name="title"/></aside>
+            <footer><field name="genre_ids" widget="many2many_tags"/><field name="rating" widget="priority"/></footer>
+        </t>
+    </templates>
+</kanban>
+<pivot string="Books" display_quantity="1" default_order="pages desc">
+    <field name="author_id" type="row"/>
+    <field name="published_on" type="row" interval="year"/>
+    <field name="book_format" type="col"/>
+    <field name="pages" type="measure"/>
+</pivot>
+```
+
+- **Kanban:** one card template `<t t-name="card">` holding only `<field>` nodes and at most one each of `<main>` (first field is the title), `<aside>` and `<footer>`. Markup (`<div>`, `<span>`, `<img>`), `t-if`, `t-esc`, `class`, dynamic `invisible` and one2many fields on a card are refused. Root attributes include `limit`, `default_group_by`, `quick_create`, `can_open`, `create`, `edit`, `delete`. Not available yet: grouped columns, drag and drop, quick creation, drawing the progress bar.
+- **Pivot:** `type="row"` / `type="col"` groupings (up to six per axis; boolean, char, integer, selection, many2one, date or datetime; `interval` `day`, `week`, `month`, `quarter` or `year` on dates) and `type="measure"` (integer, float or monetary). `widget`, `invisible` and `options` on a pivot field are refused. Every pivot gets a Download (xlsx) button.
+- **Graph:** `<graph string="Books" type="bar">` (bar, line or pie) with one or two grouping fields and `type="measure"` fields; see `graph-view.md`.
+- **Calendar:** `<calendar date_start="loan_date" date_stop="due_date" color="borrower_id" mode="month">` with the fields to show; `date_start` is required; see `calendar-view.md`.
+
+## Dashboard cards (application overview boards)
+
+A kanban card can be one computed `text` field drawn with `widget="dashboard_card"`: the model computes (not stored) a JSON text with buttons that open window actions by external id, figures with a count, an optional amount and a domain, and a small bar or line chart. The JSON contract (`"v": 1`, every key required, amounts as decimal text) is in `dashboard-cards.md`; a value that departs from it is named on the card instead of drawn. The widget is refused on any other field type and draws only on kanban cards.
+
 
 ## Extend another addon's view (never edit it)
 
@@ -96,7 +155,7 @@ Views are `<record model="ir.ui.view">` entries in a data file (listed in the ma
 
 ## Not covered here
 
-Kanban, calendar, pivot, graph, activity and other view types; `get_views` wire format; custom view types. The guide's `views.md` describes the registry; this skill only covers list, form and search.
+The full attribute and refusal tables of kanban, pivot, graph and calendar views (`kanban-view.md`, `pivot-view.md`, `graph-view.md`, `calendar-view.md`); activity, gantt and other view types; the form's visual layout rules (`views.md`, "Form header band and field presentation"); `get_views` wire format; custom view types.
 
 ## Sources
 
@@ -104,7 +163,15 @@ Kanban, calendar, pivot, graph, activity and other view types; `get_views` wire 
 - docs/addon-guide/human-form-layout.md
 - docs/addon-guide/data-files.md
 - docs/addon-guide/two-addon-tutorial.md
+- docs/addon-guide/kanban-view.md
+- docs/addon-guide/pivot-view.md
+- docs/addon-guide/graph-view.md
+- docs/addon-guide/calendar-view.md
+- docs/addon-guide/dashboard-headers.md
+- docs/addon-guide/dashboard-cards.md
+- addons/sample_library/manifest.toml
 - addons/sample_library/views/sample_library_views.xml
+- addons/account/views/account_invoice_views.xml
 - addons/acceptance_notes/views/acceptance_notes_views.xml
 - addons/contacts/views/contacts_views.xml
 - addons/base/data/partner_views.xml
