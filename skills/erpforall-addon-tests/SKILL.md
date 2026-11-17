@@ -46,7 +46,7 @@ An access CSV is an input, not the expected answer: write the expected outcome p
 
 ## 5. Client code (widgets, panels)
 
-Use `@erpforall/elang-test` from a workspace test: keep each test inside `withTestScope(async scope => { ... })` (it unmounts roots and restores registry and patch changes even when the callback rejects), mount with `scope.mount(ComponentClass, options)`, replace a service with `scope.mockService(CanonicalServiceClass, mockInstance)`, patch with `scope.patch` / `scope.patchStatic`. The package is test infrastructure: never import it from a production addon entry point. One scope per test realm at a time: no concurrent tests that share patch or registry state.
+Use `@erpforall/elang-test` from a workspace test: keep each test inside `withTestScope(async scope => { ... })` (it unmounts roots and restores registry and patch changes even when the callback rejects), mount with `scope.mount(ComponentClass, options)`, replace a service with `scope.mockService(CanonicalServiceClass, mockInstance)`, patch with `scope.patch` / `scope.patchStatic`. The package is test infrastructure: never import it from the entry point an addon ships. One scope per test realm at a time: no concurrent tests that share patch or registry state.
 
 ## Not covered here
 
