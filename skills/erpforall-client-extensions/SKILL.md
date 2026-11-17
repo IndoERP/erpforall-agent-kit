@@ -70,6 +70,7 @@ registerFieldWidget("acceptance_notes.note_title", { kinds: ["char"], render: el
 
 - Report edits with `this.props.change(value)` so the form runs onchange and keeps its dirty/save state. **Never send independent writes from a field component.**
 - Additive control-panel component: `registerControlPanelExtension("addon.extension", { model: "acceptance.note", component: MyPanel })` (props `ControlPanelProps {title, model}`). Duplicate identities are rejected; there is no last-wins override.
+- Shell chrome extensions come from the same public module: `registerCogMenuItem` (cog menu actions), `registerSystrayItem` (navbar), `registerCommandProvider` / `registerCommandCategory` (command palette, Control+K), `registerUserMenuItem`, `registerDebugItemProvider`. Their options (sequence, groups, `isDisplayed`, optional Lucide `icon`) are in `web-client.md`, "Shell extension registries".
 - Build a deployment's client with `ERP_UI_COMPILER=/path/to/erp-ui-compile node web/scripts/build-human-ui.mjs --addons web,my_addon` (from the framework checkout); nothing is compiled in the browser.
 
 ## Registries, services and patches (Elang)
@@ -85,6 +86,8 @@ Reusable editors (code, date/time, HTML, signature, domain), dialogs and notific
 - docs/addon-guide/human-client-extensions.md
 - docs/addon-guide/client-extensions.md
 - docs/addon-guide/component-testing.md
+- docs/addon-guide/web-client.md
+- addons/web/static/src/client/public.ts
 - addons/acceptance_notes/static/client.json
 - addons/acceptance_notes/static/src/client.ts
 - addons/acceptance_notes/static/src/note-title.xml
