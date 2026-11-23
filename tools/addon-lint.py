@@ -269,24 +269,25 @@ def toml_loads(text: str) -> dict:
 
 MANIFEST_KEYS = {
     "name", "summary", "description", "version", "license", "author", "category", "application",
-    "depends", "data", "demo", "auto_install", "countries", "excludes", "installable",
+    "depends", "data", "demo", "auto_install", "countries", "excludes", "installable", "icon",
     "pre_init_hook", "post_init_hook", "uninstall_hook", "exact_only", "extra",
 }
 MODEL_KEYS = {"name", "extend", "inherit", "description", "order", "rec_name", "table", "transient",
-              "abstract", "field", "company_access"}  # company_access: seen in sample_library
-FIELD_TYPES = {"boolean", "integer", "float", "monetary", "char", "text", "html", "selection", "date",
-               "datetime", "json", "many2one", "one2many", "many2many"}
+              "abstract", "field", "company_access", "audit_reads", "transient_max_age_seconds",
+              "transient_max_count"}  # company_access: seen in sample_library
+FIELD_TYPES = {"boolean", "integer", "bigint", "float", "monetary", "char", "text", "html", "selection",
+               "date", "datetime", "json", "many2one", "one2many", "many2many"}
 FIELD_KEYS = {"name", "type", "string", "help", "required", "readonly", "store", "copy", "groups",
               "index", "default", "related", "size", "digits", "currency_field", "selection",
               "selection_add", "comodel", "inverse", "relation", "column1", "column2", "ondelete",
-              "domain", "context", "check_company"}
+              "domain", "context", "check_company", "collation"}
 RELATIONAL = {"many2one", "one2many", "many2many"}
 ROOTS_OK = {"erp"}
 ROOTS_LEGACY = {"odoo", "openerp", "data"}
 CONTAINERS = {"erp", "odoo", "openerp", "data"}
 TOP_ELEMENTS = {"record", "template", "asset", "menuitem", "delete", "function"}
 RECORD_ATTRS = {"id", "model", "forcecreate", "uid", "context"}  # data-files.md error example
-VIEW_ROOTS = {"list", "form", "search"}
+VIEW_ROOTS = {"list", "form", "search", "kanban", "pivot", "graph", "calendar"}
 TRANSLATED_ATTRS = ("string", "help", "placeholder", "confirm", "title")
 POSITIONS = {"inside", "after", "before", "replace", "attributes", "move"}
 BUILTIN_FIELDS = {"id", "display_name", "create_uid", "create_date", "write_uid", "write_date"}

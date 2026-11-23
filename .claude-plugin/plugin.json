@@ -1,6 +1,6 @@
 {
   "name": "erpforall-agent-kit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Skills and small tools that help AI coding agents build ERPForAll addons correctly.",
   "author": {
     "name": "ERPForAll contributors"

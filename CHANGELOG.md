@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.3.0
+
+Updated `SOURCE_REVISION` to `aea11474cc94713d7e1f639b6999a6be9f060de1`, expanded skill coverage, and updated `addon-lint.py`.
+
+New skills:
+
+- `erpforall-migrations`: schema and data migrations across `pre`, `post` and `end` stages (`#[erp_sdk::migration]` and `migrations/<version>/<stage>-*.sql`), `0.0.0` every-upgrade hooks, adopting company-dependent scalars, and upgrade testing.
+- `erpforall-jobs`: durable background jobs (`register_job_kind!`, `StepArgs`/`StepOutcome`, `EnqueueRequest`, deduplication/singleton keys, `job_cancel_by_key`, `JobHandler` and `chunk_items`).
+- `erpforall-wizards-actions`: transient wizard modal dialogs (`<footer>`, bounded `act_window` and `display_notification` results, cleanup policies) and full-screen `ir.actions.client` actions (`ClientActionDecl` and `registerClientAction`).
+- `erpforall-orm-scale`: business keys (`UNIQUE NULLS NOT DISTINCT`), batch `upsert`, `row_version` optimistic concurrency (`expect_versions`), and bounded `#[search_method]` providers for nonstored computed fields.
+- `erpforall-review`: agent-neutral pre-review checklist (manifest/data completeness, fail-loudly hygiene, security and `company_access`, migrations, client extension discipline) plus optional pairing with external ECC specialist reviewers.
+
+Updated skills:
+
+- `erpforall-views`: `widget="binary"` with `filename` and `accepted_file_extensions`, object button `prompt="text|date|selection"`, `<form edit_mode="read">`, search `<filter>` / `<field>` / `search_default_*` defaults.
+- `erpforall-client-extensions`: `WidgetEnvironment.mode` and `onRecordEvent`, `registerListHeaderExtension`, `<addon>.appearance` database themes, and `static/brand/` server logo/favicon assets.
+- `erpforall-menus-actions`: `search_default_<name>` in action context and custom SVG/PNG `web_icon` references (`<addon>,static/...` and bounded `data:image/*` URLs).
+- `erpforall-models-fields`: translated fields (`#[field(..., translate = true)]`, `get_field_translations` / `update_field_translations`, static selection label translations) and `widget="binary"` defaults.
+- `erpforall-settings`: `erp_addon_base::approval_settings::max_approvers` helper and `<addon>.appearance` global selection settings.
+- `erpforall-security`: `POST /erp/session/api-key` device API key exchange and `_get_session_token_fields`.
+
+Tools and documentation:
+
+- `tools/addon-lint.py`: accepted `icon` in `manifest.toml`, `audit_reads`, `transient_max_age_seconds` and `transient_max_count` in `[[model]]`, `bigint` field type, `collation` field key, and `kanban`/`pivot`/`graph`/`calendar` view roots.
+- `README.md`: documented optional **ECC** companion reviewers alongside the full 21-skill table.
+
 ## 0.2.0
 
 The skills now follow the current addon guide of the framework.

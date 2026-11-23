@@ -69,8 +69,13 @@ registerFieldWidget("acceptance_notes.note_title", { kinds: ["char"], render: el
 ```
 
 - Report edits with `this.props.change(value)` so the form runs onchange and keeps its dirty/save state. **Never send independent writes from a field component.**
+- When a widget renders inside a record form, `WidgetEnvironment` also supplies `mode` (`"read"` or `"edit"`, used with `<form edit_mode="read">`) and `onRecordEvent(listener)` (returns an unsubscribe function and fires `saved` with `id`, `saveFailed`, `discarded` and `modeChanged` after the form settles; subscriptions end when the widget is disposed).
+- **Additive list header (`registerListHeaderExtension`):** Mount a component above an action's list view (lists only, not kanban or pivot) with `registerListHeaderExtension("my_addon.header", { model: "my.model", create(env) { return { element, refresh(domain, { signal }) { ... }, dispose() { ... } }; } })`; `refresh` runs on each load with the active search domain.
 - Additive control-panel component: `registerControlPanelExtension("addon.extension", { model: "acceptance.note", component: MyPanel })` (props `ControlPanelProps {title, model}`). Duplicate identities are rejected; there is no last-wins override.
 - Shell chrome extensions come from the same public module: `registerCogMenuItem` (cog menu actions), `registerSystrayItem` (navbar), `registerCommandProvider` / `registerCommandCategory` (command palette, Control+K), `registerUserMenuItem`, `registerDebugItemProvider`. Their options (sequence, groups, `isDisplayed`, optional Lucide `icon`) are in `web-client.md`, "Shell extension registries".
+- **Database appearance & server brand assets (via `static/dist/manifest.json`, see `ui-assets.md`):**
+  - An installed addon can contribute a database appearance by declaring a global selection setting `<addon>.appearance` on `ir.config.setting` (with `"default"` and theme choices such as `"office-blue"`) and shipping `static/src/theme.css` under `static_files`; the shell loads `/<addon>/static/src/theme.css` and sets `data-office-theme="<value>"` (see `addons/theme_office_blue`). Only one appearance may be selected.
+  - An installed addon can supply `static/brand/icon.svg`, `logo.svg` and `logo-dark.svg` under `static_files` in `static/dist/manifest.json` so `/favicon.ico` and `/erp/brand/*` (including on the login page) serve its images. At most one installed addon may ship brand images: installing a second one fails.
 - Build a deployment's client with `ERP_UI_COMPILER=/path/to/erp-ui-compile node web/scripts/build-human-ui.mjs --addons web,my_addon` (from the framework checkout); nothing is compiled in the browser.
 
 ## Registries, services and patches (Elang)
@@ -79,7 +84,7 @@ Register contributions from an exported synchronous `register(ctx)` callback; im
 
 ## Not covered here
 
-Reusable editors (code, date/time, HTML, signature, domain), dialogs and notification services, themes: see `human-client-extensions.md`, `ui-assets.md`, `web-client.md`, `wizard-dialogs.md`.
+Reusable editors (code, date/time, HTML, signature, domain), dialogs and notification services, themes, full-screen client actions: see `human-client-extensions.md`, `ui-assets.md`, `web-client.md`, `wizard-dialogs.md`, `client-actions.md`, or the `erpforall-wizards-actions` skill.
 
 ## Sources
 
@@ -87,7 +92,13 @@ Reusable editors (code, date/time, HTML, signature, domain), dialogs and notific
 - docs/addon-guide/client-extensions.md
 - docs/addon-guide/component-testing.md
 - docs/addon-guide/web-client.md
+- docs/addon-guide/ui-assets.md
 - addons/web/static/src/client/public.ts
+- addons/web/static/src/client/registry.ts
+- addons/web/static/src/client/theme.ts
+- addons/theme_office_blue/src/lib.rs
+- addons/web/src/assets/assembly.rs
+- crates/erp-server/src/web.rs
 - addons/acceptance_notes/static/client.json
 - addons/acceptance_notes/static/src/client.ts
 - addons/acceptance_notes/static/src/note-title.xml

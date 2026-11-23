@@ -67,8 +67,19 @@ Views are `<record model="ir.ui.view">` entries in a data file (listed in the ma
 - Use `<list>` (the guide's addons do not use `<tree>`). Every `<field name>` must be a field of the view's model; a view that names a missing field fails the install.
 - Form layout: `sheet` directly under `form`; `group` takes optional `name`/`string`; a `notebook` holds only `page` elements (a page needs `name` or `string`); at most one `aside` and one `<chatter/>`, directly in the form (see `erpforall-chatter`). Odd track counts, arbitrary HTML and dynamic layout modifiers are refused.
 - Modifier attributes seen in the guide: `invisible`, `readonly`, `required` (expressions such as `phase != 'draft'`), and `groups` on pages and fields.
-- Widgets used by the real addons (all via `widget="..."`): `email`, `phone`, `url`, `many2many_tags`, `priority`, `badge`, `percentage`, `color`, `color_picker`, `radio`, `statusbar`, `boolean_toggle`, `boolean_favorite`, `CopyClipboardChar`, `CopyClipboardURL`, `CopyClipboardText`, `statinfo`. An unknown widget or an incompatible field kind fails explicitly.
+- Widgets used by the real addons (all via `widget="..."`): `email`, `phone`, `url`, `binary`, `image`, `many2many_tags`, `priority`, `badge`, `percentage`, `color`, `color_picker`, `radio`, `statusbar`, `boolean_toggle`, `boolean_favorite`, `CopyClipboardChar`, `CopyClipboardURL`, `CopyClipboardText`, `statinfo`. An unknown widget or an incompatible field kind fails explicitly.
+- **Binary fields (`widget="binary"`):** A `binary` field defaults to `widget="binary"` in a form or list (showing the file name, size and Download, plus Upload/Replace and Clear when editable). `filename="document_name"` (or `options="{'filename': 'document_name'}"`, not both) names a `char` field on the same model holding the file's name so Upload updates both; `options="{'accepted_file_extensions': '.pdf,image/*'}"` hints the file chooser (the server stays the authority). Use `widget="image"` for pictures.
+- **Read-first forms:** `<form edit_mode="read">` opens a saved record read-first with an Edit button (or the `E` key outside a field); a successful Save or a Discard returns to read mode, a failed save stays editable with its errors, and a new record opens editable. It cannot be combined with `edit="0"` or `record_mode="service"`.
 - Header buttons: `<button name="submit" type="object" string="Submit" class="btn-primary" confirm="Submit this record?" invisible="phase != 'draft'"/>`. `name` must be an exposed model method; `invisible`/`groups` only hide the button and do **not** authorize the call, so keep the check in the method.
+- **Object button prompts:** Instead of a one-field wizard, an `object` button can ask for one short answer before calling the method:
+  ```xml
+  <button name="action_refuse" type="object" string="Refuse"
+          prompt="text" prompt-label="Reason" prompt-required="1" prompt-max="500"/>
+  <button name="action_run" type="object" string="Run" prompt="date" prompt-label="Run for date"/>
+  <button name="action_close" type="object" string="Close"
+          prompt="selection" prompt-label="Outcome" prompt-options="won:Won,lost:Lost"/>
+  ```
+  `prompt-label` is required; `prompt-max` (1 to 4096) applies to `text`; `prompt-options` (`value:Label` entries) is required for `selection`; `prompt-required="1"` makes the answer required. A prompt cannot combine with `confirm`. The answer reaches the method as the keyword argument `prompt_value` (`String` when required, `Option<String>` when optional); validate it on the server too.
 - Stat buttons live in `<div name="button_box" class="oe_button_box">` as `type="object"` buttons with a `<field widget="statinfo">`.
 - `create="0"`, `edit="0"`, `delete="0"` on a `<list>` or `<form>` root hide New, make the form read-only, or remove Delete.
 - `options="{'enable_formatting': False}"` on an integer or float field (a year, a sequence number) drops the thousands separator. An `html` field uses `widget="html"` (or no widget).
@@ -78,7 +89,11 @@ Views are `<record model="ir.ui.view">` entries in a data file (listed in the ma
          context="{'list_view_ref': 'account.view_invoice_line_list', 'form_view_ref': 'account.view_invoice_line_form'}"/>
   ```
   A name that does not resolve is refused by the server.
-- **Group By in the search menu:** a `<filter>` of the model's default search view whose `context` is `{'group_by': 'field'}` (boolean, char, integer, selection or many2one, stored and readable) is offered as a Group By item: `<filter name="group_city" string="City" context="{'group_by': 'city'}"/>`. The action's own `search_view_id` is not consulted for this yet.
+- **Search views (`<search>`), filters and `search_default_*`:**
+  - Consecutive `<filter name="..." string="..." domain="[...]"/>` nodes share an OR group; `<separator/>`, `<field>`, or `<group>` starts the next group (groups are AND-ed).
+  - `<filter name="..." string="..." context="{'group_by': 'field'}"/>` (boolean, char, integer, selection or many2one, stored and readable; temporal fields also support `field:month`, `day`, `week`, `quarter`, `year`) populates the Group By menu.
+  - `<field name="..." filter_domain="[('name', 'ilike', self)]"/>` declares a quick-search field.
+  - An action's `context` can preselect search items with `search_default_<name>` (`true`/`1` for a `<filter>` or `group_by` item; a string or integer for a search `<field>`).
 
 ## List extras
 
@@ -175,3 +190,8 @@ The full attribute and refusal tables of kanban, pivot, graph and calendar views
 - addons/acceptance_notes/views/acceptance_notes_views.xml
 - addons/contacts/views/contacts_views.xml
 - addons/base/data/partner_views.xml
+- addons/web/src/h18_lower.rs
+- addons/web/static/src/client/binary-field.ts
+- addons/web/static/src/client/button-prompt.ts
+- addons/web/static/src/client/record-form.ts
+- addons/web/static/src/client/search/search-arch.ts

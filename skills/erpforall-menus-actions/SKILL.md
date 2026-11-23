@@ -39,12 +39,16 @@ description: Add menus and window actions to an ERPForAll addon - ir.actions.act
 </record>
 ```
 
-- **Defaults for new records** go in the action's `context`, a literal dictionary of at most 16 `default_<field>` keys naming fields of `res_model`, each a text, a boolean or an integer (`<field name="context">{'default_move_type': 'out_invoice'}</field>`). Refused by name when the action loads: expressions (`uid`, `context.get(...)`), lists, negative numbers, a key naming no field or a readonly, computed, related or x2many field, session keys such as `allowed_company_ids`, and `search_default_<name>` (not delivered yet). Dates are `YYYY-MM-DD` text.
+- **Defaults and initial search filters** go in the action's `context`, a literal dictionary of at most 16 `default_<field>` keys (each a text, boolean or integer) and up to 16 `search_default_<name>` keys (`{'default_move_type': 'out_invoice', 'search_default_available': True}`). `search_default_<name>` turns on a named search `<filter>` or `group_by` item (`true`/`1`), or pre-fills a search `<field>` with a string or integer. Refused: expressions (`uid`, `context.get(...)`), lists, negative `default_*` integers or non-existent fields, computed/related/x2many fields for `default_*`, and session keys (`allowed_company_ids`). Dates are `YYYY-MM-DD` text.
 
 ## `<menuitem>` rules
 
 - A nested `<menuitem>` takes the enclosing menu as its parent (do not write `parent`); a standalone submenu may use `parent="other_menu_id"` (seen in `acceptance_notes`: `parent="notes_menu"`).
-- `web_icon` is for **root** menus only: `web_icon="lucide:<name>"` picks a bundled icon (seen in real addons: `lucide:library`, `lucide:contact`, `lucide:notebook-pen`). An unknown name shows the default icon with a console warning, and a test fails for any shipped addon that names one.
+- `web_icon` is for **root** menus only and must match one of:
+  - `lucide:<name>`: a bundled Lucide glyph (unknown names fall back to the default glyph with a console diagnostic, and shipped addons fail tests on unknown names);
+  - `<addon>,static/<path>.svg` or `.png`: an image published from the addon's `static/` directory under `static_files` in `static/dist/manifest.json` (served with sandboxed SVG CSP and drawn as `<img>`);
+  - a `data:image/svg+xml` or `data:image/png` URL of at most 2048 bytes.
+  Any other form fails the `ir.ui.menu` write, so a mistyped icon stops install.
 - A submenu has either an `action` or child menus, not neither.
 - `groups="base.group_user"` limits who sees the menu; `groups="a,-b"` links `a` and unlinks `b`. Limit a Configuration branch with `groups="base.group_system"`.
 - `sequence` orders siblings (default 10). The menu name may be left out when it has an action (the action's name is used).
@@ -52,7 +56,7 @@ description: Add menus and window actions to an ERPForAll addon - ir.actions.act
 
 ## Other action types
 
-`ir.actions.act_url`, `ir.actions.client`, `ir.actions.server` and `ir.actions.report` exist and share one id space with window actions. Server actions (including `code` actions, sandboxed Luau scripts) run with the caller's rights unless an administrator sets `run_as_superuser`; `object_copy` and `webhook` are not available yet. Report actions: skill `erpforall-reports`. To show an addon's own settings page, `acceptance_notes` declares a form on `ir.config.setting` with `<widget name="web.settings" scope_kinds="global,company" app="acceptance_notes"/>` and a window action over it; copy that file's last records rather than inventing the pattern; declaring the settings themselves is in the `erpforall-settings` skill.
+`ir.actions.act_url`, `ir.actions.client`, `ir.actions.server` and `ir.actions.report` exist and share one id space with window actions. Full-screen client actions (`ir.actions.client`) and modal wizard actions (`target="new"`) are covered in the `erpforall-wizards-actions` skill. Server actions (including `code` actions, sandboxed Luau scripts) run with the caller's rights unless an administrator sets `run_as_superuser`; `object_copy` and `webhook` are not available yet. Report actions: skill `erpforall-reports`. To show an addon's own settings page, `acceptance_notes` declares a form on `ir.config.setting` with `<widget name="web.settings" scope_kinds="global,company" app="acceptance_notes"/>` and a window action over it; copy that file's last records rather than inventing the pattern; declaring the settings themselves is in the `erpforall-settings` skill.
 
 ## Not covered here
 
@@ -67,3 +71,6 @@ Contextual (binding) actions (`binding_model_id`, `binding_type`), server-action
 - addons/sample_library/views/sample_library_views.xml
 - addons/acceptance_notes/views/acceptance_notes_views.xml
 - addons/account/views/account_invoice_views.xml
+- addons/base/src/ir_ui_menu.rs
+- addons/web/static/src/client/icons.ts
+- addons/web/src/action_result.rs

@@ -94,7 +94,11 @@ pub cover_256: Option<Blob>,   // a stored smaller size of `cover`
 - An `image` field accepts PNG, JPEG, GIF or WebP only (read from the bytes; SVG is refused), scales a larger PNG or JPEG down to its bounds (16 to 4096 pixels per edge, or none) and is limited by the system parameters `base.image_max_bytes` and `base.image_max_pixels`.
 - Binary and image fields cannot be indexed, translated, company-dependent, ordered by or grouped by.
 - `erp_addon_base::ImageMixin` (`inherit = [ImageMixin]`) adds `image_1920` and the stored sizes `image_1024`, `image_512`, `image_256`, `image_128`; write `image_1920` only. Show a picture with `widget="image"`, in lists and cards with `options="{'preview_image': 'image_128'}"`.
-- Storage is a `bytea` column of the model's table; attachment-backed storage is not built yet. Files attached to a record (not a field) are `ir.attachment` records (skill `erpforall-attachments`).
+- Storage is a `bytea` column of the model's table; attachment-backed storage is not built yet. In a form or list, a `binary` field automatically uses `widget="binary"` with optional `filename="<char_field>"` (skill `erpforall-views`). Files attached to a record (not a field) are `ir.attachment` records (skill `erpforall-attachments`).
+
+## Translated fields (native)
+
+`#[field(char, translate = true)]` (or `.translate(true)` on `Char`, `Text`, `Html`) stores a JSONB language map and projects `context["lang"]` with `en_US` fallback on scalar reads, searches and ordering. Non-default languages must be active; a required translated field requires a non-empty `en_US` base on save; writing `false` clears the whole field. It cannot combine with `company_dependent`, `compute`, or `related`. In Rust, use `Records::get_field_translations(tx, field)` (`FieldTranslations`) and `Records::update_field_translations(tx, field, entries)` to read or update the map without fallback. Static selection field labels are reflected into `ir.model.fields.selection` (`<module>.selection__<model_ident>__<field>__<value_ident>`) and translated through PO files (`translated-fields.md`).
 
 ## Company-dependent fields (native)
 
@@ -113,7 +117,7 @@ A value an administrator or operator may change (a limit, an interval, a default
 
 ## Not covered here
 
-Delegation (`inherits`), partitioned models, translated fields, money/currency handling, exclusion constraints and range types, sequences (`sequences.md`; one rule to know: numbering an addon creates while the server runs must be gapless, `implementation = 'no_gap'`, because a deployed server may not create database sequences then; numbering created by an install or upgrade may stay standard), onchange on x2many lines, columns only the owner may add (`owner_only_stored_fields`), notifying the ORM after your own SQL (`modified_external`): see `models.md`, `money-currency.md`, `translated-fields.md`, `exclusions.md`, `sequences.md`. Tracking is in the `erpforall-chatter` skill (`tracking.md`).
+Delegation (`inherits`), partitioned models, money/currency handling, exclusion constraints and range types, sequences (`sequences.md`; one rule to know: numbering an addon creates while the server runs must be gapless, `implementation = 'no_gap'`, because a deployed server may not create database sequences then; numbering created by an install or upgrade may stay standard), onchange on x2many lines, columns only the owner may add (`owner_only_stored_fields`), notifying the ORM after your own SQL (`modified_external`): see `models.md`, `money-currency.md`, `exclusions.md`, `sequences.md`. Business keys, `upsert`, `row_version` and `#[search_method]` are in the `erpforall-orm-scale` skill (`keys-upsert-versions.md`, `search-methods.md`). Tracking is in the `erpforall-chatter` skill (`tracking.md`).
 
 ## Sources
 
@@ -122,6 +126,7 @@ Delegation (`inherits`), partitioned models, translated fields, money/currency h
 - docs/addon-guide/models.md
 - docs/addon-guide/binary-image-fields.md
 - docs/addon-guide/company-dependent-fields.md
+- docs/addon-guide/translated-fields.md
 - docs/addon-guide/sequences.md
 - docs/addon-guide/rpc.md
 - crates/erp-modules/src/model_files.rs

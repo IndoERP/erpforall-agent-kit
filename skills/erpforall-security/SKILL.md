@@ -94,15 +94,21 @@ A field you add to `res.users` is administrator-only unless marked `user_writeab
 
 Mark only what is the user's own business. Do not make such a field `required` at the column unless every writer sets it (`mail` uses a default plus a `#[constrains]` check).
 
+## Device API keys and session token fields
+
+- Native or non-browser clients exchange a password for an `rpc`-scoped user API key by posting `{ "db", "login", "password", "device_name" }` (`device_name` non-empty trimmed, <= 128 bytes) to `POST /erp/session/api-key` (`auth.md`, `crates/erp-server/src/web/session_api_key.rs`). Accounts requiring MFA or pending a second factor are refused (`403`); the temporary browser session used during issuance is ended before responding with `{ "api_key", "expires_at", "uid" }`, `Cache-Control: no-store`, and no `Set-Cookie`. Cross-origin requests are refused (`403`). Clients revoke their key via `res.users.apikeys/revoke`.
+- An addon adding a stored credential factor field on `res.users` (such as a TOTP secret) overrides `res.users._get_session_token_fields`, calls `super`, and appends its field name with `fields.with_field("...")` so changing that field invalidates existing sessions across nodes (`auth.md`, "Adding fields to the session token").
+
 ## Not covered here
 
-Capabilities, authentication and sessions, the `erp access` report command, multi-company link checks (`check_company`, `company_match`), approval policies (`ir.approval.policy`) and multi-user acceptance testing: see `capabilities.md`, `auth.md`, `company-consistency.md`, `field-access.md`, `security.md`, `access-rules.md`.
+Capabilities, full authentication and cooldown internals, the `erp access` report command, multi-company link checks (`check_company`, `company_match`), approval policies (`ir.approval.policy`) and multi-user acceptance testing: see `capabilities.md`, `auth.md`, `company-consistency.md`, `field-access.md`, `security.md`, `access-rules.md`.
 
 ## Sources
 
 - docs/addon-guide/security.md
 - docs/addon-guide/access.md
 - docs/addon-guide/access-rules.md
+- docs/addon-guide/auth.md
 - docs/addon-guide/field-access.md
 - docs/addon-guide/odoo-compatibility.md
 - docs/addon-guide/company-consistency.md
@@ -111,6 +117,7 @@ Capabilities, authentication and sessions, the `erp access` report command, mult
 - addons/mail/views/res_users_views.xml
 - addons/mail/src/res_users.rs
 - crates/erp-modules/src/model_files.rs
+- crates/erp-server/src/web/session_api_key.rs
 - addons/sample_library/security/ir.access.csv
 - addons/uom/security/ir.access.csv
 - addons/product/security/product_security.xml

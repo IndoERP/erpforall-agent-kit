@@ -110,6 +110,10 @@ erp_sdk::system_parameters!(parameters); // or system_parameters!(parameters, gr
   Over RPC: `ir.config.setting.erp_describe(scope)`, `erp_read_values(scope, keys)`,
   `erp_write_values(scope, expected_revision, changes)`; a stale revision is refused, so reload and retry.
 - There is no node-local cache to invalidate. Never write the value tables with SQL.
+- **Built-in helpers:** Addons that route approvals call `erp_addon_base::approval_settings::max_approvers(tx).await?` to
+  read `base.approval_max_approvers` without requiring generic Settings access on the caller. An addon that contributes
+  a database appearance declares a global selection setting `<addon>.appearance` on `ir.config.setting` with
+  `"default"` and its theme choice (`web-client.md`, `addons/theme_office_blue/src/lib.rs`).
 
 ## Not covered here
 
@@ -122,11 +126,14 @@ from data-only or WASM addons.
 
 - docs/addon-guide/settings.md
 - docs/addon-guide/company-dependent-fields.md
+- docs/addon-guide/web-client.md
 - addons/acceptance_notes/src/lib.rs
 - addons/acceptance_notes/views/acceptance_notes_views.xml
 - addons/account/src/tax/settings.rs
+- addons/base/src/approval_settings.rs
 - addons/base/src/attachments/settings.rs
 - addons/base/src/system_parameters.rs
 - addons/sales_team/src/team.rs
+- addons/theme_office_blue/src/lib.rs
 - crates/erp-registry/src/settings.rs
 - addons/stock/src/migrations.rs

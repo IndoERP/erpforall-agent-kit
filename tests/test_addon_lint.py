@@ -61,6 +61,26 @@ class ManifestTest(LintCase):
         m.write_text(m.read_text() + '[extra]\ncolour = "red"\n')
         self.assertEqual(self.messages(), [])
 
+    def test_new_manifest_and_model_keys_accepted(self):
+        m = self.addon / "manifest.toml"
+        m.write_text(m.read_text() + 'icon = "lucide:shop"\n')
+        write(self.addon, "models/10_item.toml", """
+            [[model]]
+            name = "shop.item"
+            audit_reads = true
+            transient = true
+            transient_max_age_seconds = 3600
+            transient_max_count = 100
+            [[model.field]]
+            name = "name"
+            type = "char"
+            collation = "C"
+            [[model.field]]
+            name = "external_seq"
+            type = "bigint"
+            """)
+        self.assertEqual(self.lint(), [])
+
     def test_non_xml_data_file_and_duplicates(self):
         m = self.addon / "manifest.toml"
         write(self.addon, "data/x.sql", "select 1;")
