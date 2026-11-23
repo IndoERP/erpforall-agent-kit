@@ -1,0 +1,39 @@
+name: drift-check
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-public-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Shallow clone public ERPForAll main
+        run: git clone --depth 1 --branch main https://github.com/IndoERP/ERPForAll.git erpforall-public
+      - name: Verify skill source paths against public ERPForAll
+        run: python3 -I scripts/check.py --public-source ./erpforall-public
+      - name: Report revision and addon inventory delta
+        run: |
+          set -euo pipefail
+          pinned="$(tr -d ' \n' < PUBLIC_SOURCE_REVISION)"
+          live="$(git -C erpforall-public rev-parse HEAD)"
+          addons="$(ls -1 erpforall-public/addons | sort | tr '\n' ' ')"
+          {
+            echo "### ERPForAll Public Drift Check"
+            echo "- Pinned \`PUBLIC_SOURCE_REVISION\`: \`${pinned}\`"
+            echo "- Live \`IndoERP/ERPForAll@main\`: \`${live}\`"
+            if [ "$pinned" = "$live" ]; then
+              echo "- Status: up to date"
+            else
+              echo "- Status: public repository moved ahead of \`PUBLIC_SOURCE_REVISION\`"
+            fi
+            echo "- Shipped addons: ${addons}"
+          } >> "$GITHUB_STEP_SUMMARY"

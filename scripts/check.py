@@ -54,7 +54,13 @@ def sources_of(body: str) -> list[str] | None:
     return [m.group(1).strip().strip("`") for ln in tail if (m := re.match(r"^- (.+)$", ln))]
 
 
-def check_skill(skill_dir: Path, source: Path | None, forbidden: re.Pattern[str] | None = None) -> list[str]:
+def check_skill(
+    skill_dir: Path,
+    source: Path | None,
+    forbidden: re.Pattern[str] | None = None,
+    *,
+    public_source: Path | None = None,
+) -> list[str]:
     errs: list[str] = []
     md = skill_dir / "SKILL.md"
     if not md.is_file():
@@ -95,17 +101,29 @@ def check_skill(skill_dir: Path, source: Path | None, forbidden: re.Pattern[str]
         for page in sorted(set(PAGE_RE.findall(body))):
             if not (guide / page).is_file():
                 errs.append(f"{tag}: names guide page {page!r}, which does not exist in {guide}")
+    if public_source is not None:
+        for s in srcs or []:
+            if s.startswith("/") or ".." in Path(s).parts:
+                errs.append(f"{tag}: source {s!r} must be a repo-relative path")
+            elif s.startswith("docs/addon-guide/"):
+                continue  # internal guide pages are not exported to the public source tree
+            elif not (public_source / s).is_file():
+                errs.append(f"{tag}: public source {s!r} does not exist in {public_source}")
     return errs
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("--source", type=Path, help="checkout of the ERPForAll source repository")
+    ap.add_argument("--source", type=Path, help="checkout of the full ERPForAll source repository")
+    ap.add_argument("--public-source", type=Path, help="checkout of the public IndoERP/ERPForAll repository (verifies non-guide source paths)")
     ap.add_argument("--skills", type=Path, default=ROOT / "skills")
     ap.add_argument("--forbid", type=Path, help="file of extra regular expressions (one per line) that must not appear")
     a = ap.parse_args(argv)
     if a.source is not None and not a.source.is_dir():
         print(f"error: --source {a.source} is not a directory", file=sys.stderr)
+        return 2
+    if a.public_source is not None and not a.public_source.is_dir():
+        print(f"error: --public-source {a.public_source} is not a directory", file=sys.stderr)
         return 2
     dirs = sorted(p for p in a.skills.iterdir() if p.is_dir()) if a.skills.is_dir() else []
     if not dirs:
@@ -115,10 +133,15 @@ def main(argv: list[str] | None = None) -> int:
     forbidden = re.compile("|".join(FORBIDDEN + extra), re.I)
     errs: list[str] = []
     for d in dirs:
-        errs += check_skill(d, a.source, forbidden)
+        errs += check_skill(d, a.source, forbidden, public_source=a.public_source)
     for e in errs:
         print(f"ERROR {e}")
-    note = "" if a.source else " (source paths NOT verified: pass --source)"
+    if a.source:
+        note = ""
+    elif a.public_source:
+        note = " (public code/addon sources verified; internal docs/addon-guide/ skipped)"
+    else:
+        note = " (source paths NOT verified: pass --source or --public-source)"
     print(f"{len(dirs)} skill(s) checked, {len(errs)} error(s){note}")
     return 1 if errs else 0
 

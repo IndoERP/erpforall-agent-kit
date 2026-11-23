@@ -10,7 +10,8 @@ Run these checks before setting a change ready for review or opening a pull requ
 ## 1. Static analysis and addon graph
 
 1. Inspect affected models, views and cross-addon dependencies with `erpforall-addon-graph impact <changed-file>...`.
-2. Run `erpforall-addon-lint --strict addons/<my_addon> --addons-path addons` and resolve every error and warning.
+2. Run `erpforall-addon-lint --strict addons/<my_addon> --addons-path addons` and resolve every error and warning (including `Cargo.toml` layer checks for native addons).
+3. Verify test isolation and affected checks: keep full-stack domain tests in `crates/erp-suite-<domain>` (never adding leaf addons to `crates/erp-test-models` or domain tests to `crates/erp-cli`) and run `scripts/check.sh --affected --tests` (or `-p erp-addon-<name> -p erp-suite-<name> --tests`).
 
 ## 2. Manifest and data files
 

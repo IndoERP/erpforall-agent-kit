@@ -359,6 +359,21 @@ class CliTest(LintCase):
         self.assertEqual(addon_lint.main([str(self.addon)]), 0)
         self.assertEqual(addon_lint.main(["--strict", str(self.addon)]), 1)
 
+    def test_native_cargo_layer_checks(self):
+        (self.addon / "src").mkdir(exist_ok=True)
+        (self.addon / "src/lib.rs").write_text('erp_sdk::addon!(name = "shop", depends = ["base"]);\n')
+        (self.addon / "Cargo.toml").write_text(
+            '[package]\nname = "erp-addon-shop"\n'
+            '[dependencies]\nerp-sdk = "0.1"\nerp-orm = "0.1"\nerp-testkit = "0.1"\n'
+            '[dev-dependencies]\nerp-modules = "0.1"\n'
+        )
+        findings = addon_lint.lint(self.addon, [self.root])
+        errs = [f.msg for f in findings if f.level == "E"]
+        warns = [f.msg for f in findings if f.level == "W"]
+        self.assertTrue(any("erp-orm" in m for m in errs), errs)
+        self.assertTrue(any("erp-testkit" in m for m in errs), errs)
+        self.assertTrue(any("erp-modules" in m and "crates/erp-suite-shop" in m for m in warns), warns)
+
 
 if __name__ == "__main__":
     unittest.main()

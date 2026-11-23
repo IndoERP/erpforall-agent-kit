@@ -190,6 +190,17 @@ class CommandTests(Base):
         finally:
             bad.unlink()
 
+    def test_impact_emits_affected_addons_and_suggested_packages(self):
+        suite = self.ws / "crates" / "erp-suite-shop" / "Cargo.toml"
+        suite.parent.mkdir(parents=True, exist_ok=True)
+        suite.write_text('[package]\nname = "erp-suite-shop"\n')
+        code, out = self.run_cli("--json", "impact", "addons/shop/src/lib.rs")
+        self.assertEqual(code, 0)
+        data = json.loads(out)
+        self.assertIn("shop", data["affected_addons"])
+        self.assertIn("erp-addon-shop", data["suggested_packages"])
+        self.assertIn("erp-suite-shop", data["suggested_packages"])
+
     def test_usage_error_without_addons(self):
         import os
         old = os.getcwd(); os.chdir(self.d)

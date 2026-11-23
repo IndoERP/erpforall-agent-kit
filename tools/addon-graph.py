@@ -802,7 +802,16 @@ def cmd_impact(g: Graph, a) -> int:
                 if fv["comodel"] == mname and other != mname:
                     refs.append(f"field {other}.{fk} ({fv['path']}:{fv['line']}) points at {mname}")
     affected = sorted(addons | set(deps))
-    d = {"addons": sorted(addons), "dependent_addons": sorted(deps), "models": sorted(touched_models), "references": refs,
+    suggested_pkgs: list[str] = []
+    for x in affected:
+        ad = g.addons.get(x)
+        if ad and ad.get("native"):
+            suggested_pkgs.append(f"erp-addon-{x}")
+            suite_dir = Path(ad["dir"]).resolve().parent.parent / "crates" / f"erp-suite-{x}"
+            if (suite_dir / "Cargo.toml").is_file():
+                suggested_pkgs.append(f"erp-suite-{x}")
+    d = {"addons": sorted(addons), "dependent_addons": sorted(deps), "affected_addons": affected,
+         "suggested_packages": suggested_pkgs, "models": sorted(touched_models), "references": refs,
          "lint": [f"addon-lint.py <addons path>/{x}" for x in affected]}
     lines = [f"impact of {len(a.paths)} file(s): addons {', '.join(sorted(addons)) or 'none found'}"
              + (f"; addons that depend on them: {', '.join(sorted(deps))}" if deps else "")]
@@ -811,6 +820,9 @@ def cmd_impact(g: Graph, a) -> int:
     lines += [f"  {r}" for r in refs[:40]] + ([f"  ... +{len(refs) - 40} more"] if len(refs) > 40 else [])
     if affected:
         lines.append("check again: " + "; ".join(d["lint"]) + "   (the kit's lint tool; the framework's own loader is the authority)")
+    if suggested_pkgs:
+        pkg_flags = " ".join(f"-p {p}" for p in suggested_pkgs)
+        lines.append(f"test packages: scripts/check.sh {pkg_flags} --tests")
     out(a, d, lines)
     return 0
 

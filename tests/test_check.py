@@ -108,6 +108,16 @@ class CheckTest(unittest.TestCase):
             self.assertEqual(check.main(["--skills", str(self.root / "none")]), 2)
             self.assertEqual(check.main(["--skills", str(self.skills), "--source", str(self.root / "nope")]), 2)
 
+    def test_public_source_verifies_code_paths_and_skips_internal_guides(self):
+        self.write(GOOD)
+        pub = self.root / "pub"
+        (pub / "addons/x").mkdir(parents=True)
+        (pub / "addons/x/manifest.toml").write_text('name = "X"\n')
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(check.main(["--skills", str(self.skills), "--public-source", str(pub)]), 0)
+            (pub / "addons/x/manifest.toml").unlink()
+            self.assertEqual(check.main(["--skills", str(self.skills), "--public-source", str(pub)]), 1)
+
     def test_repository_skills_pass_without_source(self):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(check.main([]), 0)

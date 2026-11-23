@@ -40,6 +40,12 @@ Dev-dependencies the real addons use: `erp-testkit`, `tokio` (features `rt`, `ma
 - Manifest consistency (pattern from the `product` addon): read `manifest.toml` with the `toml` crate, assert that every listed data file exists, that no file under `data/`, `security/`, `views/` is left unlisted (an unlisted file silently never loads), and that `manifest depends` equals the `addon!` descriptor's `depends`.
 - A default-data test: assert the records the data files declare exist after install (the `uom` addon checks ids in `data/uom_data.xml`).
 
+### Placement and targeted execution
+
+- Keep single-addon unit, manifest and registry tests inside `addons/<my_addon>/tests/` using only `erp-sdk`, other addons and `erp-testkit` (dev-dependency).
+- Put multi-addon or full-stack integration tests that need core crates (`erp-orm`, `erp-modules`, `erp-security`) in an isolated L13 domain suite crate under `crates/erp-suite-<domain>` instead of adding leaf addons to `crates/erp-test-models` or domain tests to `crates/erp-cli`.
+- Run targeted checks instead of `--workspace` while iterating: `erpforall-addon-graph impact <changed-file>...` lists the affected addons and suggested Cargo packages; in a repository checkout run `scripts/check.sh --affected --tests` or `scripts/check.sh -p erp-addon-<name> -p erp-suite-<name> --tests`.
+
 ## 4. Access with more than one user
 
 An access CSV is an input, not the expected answer: write the expected outcome per user independently of the rows, use ordinary users with verified groups in separate companies (not a setup or System environment), send valid payloads (a validation error proves nothing about authorization), and check a success by reading it back and a refusal by the absence of the change. `access-rules.md`, "Multi-user acceptance", lists what else to cover.

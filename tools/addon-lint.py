@@ -827,8 +827,33 @@ class Linter:
 
     # -- native ---------------------------------------------------------------------------
     def check_native(self) -> None:
+        if not self.native:
+            return
+        cargo_path = self.dir / "Cargo.toml"
+        try:
+            cargo = toml_loads(cargo_path.read_text(encoding="utf-8"))
+        except (TomlError, UnicodeDecodeError) as e:
+            self.add("E", cargo_path, None, f"Cargo.toml does not parse: {e}")
+            cargo = {}
+        forbidden_core = {
+            "erp-orm", "erp-modules", "erp-fields", "erp-security", "erp-rpc",
+            "erp-server", "erp-cli", "erp-ui-compiler-cli", "erp-test-models",
+        }
+        for section in ("dependencies", "build-dependencies"):
+            tbl = cargo.get(section, {})
+            if isinstance(tbl, dict):
+                for dep in sorted(tbl):
+                    if dep == "erp-testkit" or dep in forbidden_core or dep.startswith("erp-suite-"):
+                        self.add("E", cargo_path, None,
+                                 f"[{section}] depends on {dep!r}: native addons may only depend on erp-sdk and other addons (erp-testkit is dev-dependencies only)")
+        dev_tbl = cargo.get("dev-dependencies", {})
+        if isinstance(dev_tbl, dict):
+            for dep in sorted(dev_tbl):
+                if dep in forbidden_core or dep.startswith("erp-suite-"):
+                    self.add("W", cargo_path, None,
+                             f"[dev-dependencies] depends on {dep!r}: place full-stack/multi-addon integration tests in an L13 crates/erp-suite-{self.name} crate instead")
         lib = self.dir / "src" / "lib.rs"
-        if not self.native or not lib.is_file():
+        if not lib.is_file():
             return
         m = ADDON_MACRO.search(lib.read_text(encoding="utf-8", errors="replace"))
         if not m:

@@ -74,7 +74,7 @@ erp_sdk::addon!(name = "my_addon", depends = ["base"]);
 pub mod models;
 ```
 
-`Cargo.toml` depends on `erp-sdk` (the framework's scaffold writes `erp-sdk = "0.1"`, `edition = "2024"`, `license = "MIT OR Apache-2.0"`). Until `erp-sdk` is published, point it at a checkout of the framework, and copy the `[patch.crates-io]` entries (`hyper`, `tokio-postgres`) of the framework's top-level `Cargo.toml`: Cargo applies `[patch]` only from the top-level workspace. Keep `depends` in `addon!` and in `manifest.toml` the same set.
+`Cargo.toml` depends on `erp-sdk` (the framework's scaffold writes `erp-sdk = "0.1"`, `edition = "2024"`, `license = "MIT OR Apache-2.0"`). Until `erp-sdk` is published, point it at a checkout of the framework, and copy the `[patch.crates-io]` entries (`hyper`, `tokio-postgres`) of the framework's top-level `Cargo.toml`: Cargo applies `[patch]` only from the top-level workspace. Keep `depends` in `addon!` and in `manifest.toml` the same set. Native addons never depend on core internals (`erp-orm`, `erp-modules`, `erp-security`, `erp-cli`); if the addon needs full-stack multi-addon database tests, place them in a dedicated L13 `crates/erp-suite-<name>` crate and verify with `scripts/check.sh --affected --tests`.
 
 A served node (`erp server`) and `erp module install` offer only data-only addons from the addons directory and the native addons compiled into the `erp` binary. A folder with a Rust crate that the binary does not link is refused by name (`this binary does not link the addon's native code: ...`); how the framework's own binary lists the linked addons is in `modules.md`, "Making a native addon installable on a served node".
 

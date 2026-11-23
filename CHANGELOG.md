@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- **Static layer lint in `tools/addon-lint.py`**: validates native addon `Cargo.toml` dependencies so forbidden core crates (`erp-orm`, `erp-modules`, `erp-security`, `erp-cli`, `erp-suite-*`, non-dev `erp-testkit`) are flagged before `scripts/check-layers.py` runs, and guides full-stack tests to L13 `crates/erp-suite-<name>` crates.
+- **Affected test suggestions in `tools/addon-graph.py`**: `impact` now reports `affected_addons`, `suggested_packages` (`erp-addon-*` and `erp-suite-*`), and a ready-to-run `scripts/check.sh -p ... --tests` command.
+- **Updated testing, creation, and review skills**: `erpforall-addon-tests`, `erpforall-create-addon`, and `erpforall-review` now cover L13 domain test suites (`crates/erp-suite-*`) and affected-only checks (`scripts/check.sh --affected --tests`).
+- **Public repository drift detection**: added `--public-source` to `scripts/check.py`, pinned `PUBLIC_SOURCE_REVISION` (`IndoERP/ERPForAll@main`), and added weekly `.github/workflows/drift-check.yml`.
+
 ## 0.3.0
 
 Updated `SOURCE_REVISION` to `aea11474cc94713d7e1f639b6999a6be9f060de1`, expanded skill coverage, and updated `addon-lint.py`.
