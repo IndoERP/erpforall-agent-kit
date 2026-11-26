@@ -211,6 +211,145 @@ class CommandTests(Base):
             os.chdir(old)
 
 
+class ResolutionTests(unittest.TestCase):
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        self.addons = self.root / "addons"
+        self.put("addons/shop/manifest.toml", 'name = "Shop"')
+
+    def put(self, path, source):
+        file = self.root / path
+        file.parent.mkdir(parents=True, exist_ok=True)
+        file.write_text(source)
+        return file
+
+    def test_scoped_types_forward_extensions_and_negative_diagnostics(self):
+        self.put("addons/acme/manifest.toml", 'depends = ["shop"]')
+        self.put("addons/acme/src/early.rs", """
+use erp_addon_shop::{Chosen as Imported};
+#[ extend ( Imported ) ] struct Extra { #[field(char) ] pub code: String }
+#[methods(Imported)] impl Extra { #[rpc(effect = read)] fn lookup() {} }
+#[methods(Entry)] impl Unqualified {}
+#[methods(NoSuchType)] impl Absent {}
+#[methods(erp_addon_shop::nonexistent::Entry)] impl WrongPath {}
+#[extend(Missing)] struct Lost;
+""")
+        self.put("addons/shop/src/hidden.rs", '#[model(name = "fixture.hidden")] struct Hidden;')
+        self.put("addons/shop/src/lib.rs", """
+#[cfg(test)]
+#[path = "hidden.rs"]
+mod external_test;
+pub use bridge::*;
+mod bridge { pub use crate::left::Entry as Chosen; }
+mod left {
+    #[model(name = "shop.left") ] pub struct Entry;
+}
+mod right {
+    #[model(name = "shop.right")] pub struct Entry;
+    #[methods(Entry)] impl Entry { #[method] fn right_only() {} }
+}
+#[cfg(test)]
+mod test_fixture {
+    #[model(name = "shop.fake")] struct Fake;
+}
+""")
+        g = graph.build([self.addons])
+        self.assertEqual(set(g.models), {"shop.left", "shop.right"})
+        self.assertIn("code", g.models["shop.left"]["fields"])
+        self.assertEqual(set(g.models["shop.left"]["methods"]), {"lookup"})
+        self.assertEqual(set(g.models["shop.right"]["methods"]), {"right_only"})
+        self.assertEqual(len(g.unparsed), 4)
+        reasons = " ".join(why for _, _, why in g.unparsed)
+        for target in ("ambiguous: shop.left, shop.right", "NoSuchType", "Missing", "nonexistent"):
+            self.assertIn(target, reasons)
+
+    def test_macro_links_all_calls_and_preserves_implementation_and_invocation(self):
+        self.put("addons/shop/src/guards.rs", """macro_rules! guard {
+    ($module:ident, $ty:ident) => {
+        mod $module {
+            #[methods($ty)] impl $ty {
+                #[method(override)] async fn write() {}
+            }
+        }
+    };
+}
+guard!(one, First);
+guard!(two, Second);
+""")
+        self.put("addons/shop/src/models.rs", """
+#[model(name = "shop.first")] struct First;
+#[model(name = "shop.second")] struct Second;
+""")
+        g = graph.build([self.addons])
+        self.assertEqual(g.unparsed, [])
+        edges = graph.export_graph(g)["edges"]
+        for name, line in (("shop.first", 10), ("shop.second", 11)):
+            source, = g.models[name]["methods"]["write"]["sources"]
+            self.assertEqual((source["line"], source["invocation"]), (5, line))
+            self.assertEqual({e["line"] for e in edges if e["to"] == f"method:{name}.write"}, {5, line})
+
+    def test_core_fields_exposure_and_impact(self):
+        for file in graph.CORE_INPUTS:
+            self.put(file, "")
+        self.put(graph.CORE_KEYS, """
+const ROW_VERSION: &str = "row_version";
+const ROW_VERSION_FIELDS: &[FieldDecl] = &[FieldDecl::new(ROW_VERSION, KindDecl::RowVersion)];
+""")
+        self.put(graph.CORE_MODULES, "static IMPLS: [&MethodImpl; 0] = [];")
+        self.put(graph.CORE_REGISTRY, """
+const BASE_FIELDS: &[FieldDecl] = &[FieldDecl::new("id", KindDecl::Id)];
+const USERS_FIELDS: &[FieldDecl] = &[FieldDecl::char("login")];
+const MAGIC_FIELDS: &[FieldDecl] = &[FieldDecl::datetime("write_date")];
+static BASE: ModelDecl = ModelDecl::new("base", "base").kind(ModelKind::Abstract).fields(BASE_FIELDS);
+static USERS: ModelDecl = ModelDecl::new("base", "res.users").fields(USERS_FIELDS);
+""")
+        self.put(graph.CORE_ORM + "/records.rs", """
+impl Model for ResUsers { const MODEL_NAME: &'static str = "res.users"; }
+""")
+        self.put(graph.CORE_ORM + "/rpc/core.rs", """
+static CORE_RPC: [&RpcImpl; 1] = [&WRITE];
+core_rpc!(WRITE, "base", "write", Write, Records, PARAMS, bind_write);
+""")
+        self.put(graph.CORE_ORM + "/dispatch.rs", "let registered = crate::hooks::BUILTIN_IMPLS.iter();")
+        self.put(graph.CORE_ORM + "/hooks.rs", """
+static BUILTIN_IMPLS: [&MethodImpl; 1] = [&INIT];
+static UNUSED: MethodImpl = MethodImpl { addon: "base", model: "base", method: "unused" };
+static INIT: MethodImpl = MethodImpl { addon: "base", model: "base", method: "init" };
+#[cfg(test)] mod tests {
+    static FAKE: MethodImpl = MethodImpl { addon: "base", model: "base", method: "fake" };
+}
+""")
+        self.put("addons/shop/src/scope.rs", """
+#[model(name = "product.barcode.scope", log_access = false, row_version = true) ] struct BarcodeScope;
+#[extend(ResUsers)] struct UsersExtra;
+#[methods(ResUsers)] impl UsersExtra { #[method(override)] fn write() {} }
+#[methods(BarcodeScope)] impl BarcodeScope { #[rpc(hide)] fn write() {} }
+""")
+        def cli(*args):
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                code = graph.main(["--addons-path", str(self.addons), "--framework-root", str(self.root), "--json", *args])
+            return code, json.loads(buf.getvalue())
+
+        self.assertEqual(cli("summary")[1]["not_understood"], [])
+        self.assertEqual(cli("field", "res.users", "login")[1]["kind"], "char")
+        self.assertTrue(cli("field", "res.users", "id")[1]["at"].endswith("compose.rs:2"))
+        self.assertEqual(cli("field", "res.users", "write_date")[0], 0)
+        self.assertEqual(cli("field", "product.barcode.scope", "write_date")[0], 1)
+        self.assertEqual(cli("field", "product.barcode.scope", "row_version")[1]["kind"], "row_version")
+        methods = cli("model", "res.users")[1]["methods"]
+        self.assertTrue(methods["write"]["rpc"])
+        self.assertEqual(len(methods["write"]["sources"]), 2)
+        self.assertFalse(methods["init"]["rpc"])
+        self.assertNotIn("fake", methods)
+        self.assertNotIn("unused", methods)
+        self.assertFalse(cli("model", "product.barcode.scope")[1]["methods"]["write"]["rpc"])
+        self.assertIn("base", cli("impact", str(self.root / graph.CORE_ORM / "hooks.rs"))[1]["models"])
+        self.assertEqual(cli("context", "res.users.login")[1]["results"][0]["item"], "field res.users.login")
+
+
 class TomlTests(unittest.TestCase):
     def test_subset_reader_matches_tomllib_and_fails_loudly(self):
         doc = 'a = "x"\nn = [1, 2.5, true]\nt = { k = "v" }\n[[m]]\nname = "one"\n[m.s]\nz = 1\n'
