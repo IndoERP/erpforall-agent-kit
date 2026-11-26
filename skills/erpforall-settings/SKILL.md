@@ -49,6 +49,35 @@ erp_sdk::setting_declarations!(settings);
 - Read-only rows (a count, a link to a list) are `PanelItemDecl::info`, `action_link` or `menu_link`, registered
   with `erp_sdk::settings_panel_items!(items, resolve)`; they are not settings (read `settings.md` first).
 
+### Toggle rows: install an addon, turn on a feature group
+
+The same `settings_panel_items!` list takes two toggle rows, as `purchase` declares them:
+
+```rust
+PanelItemDecl::group_toggle("purchase.group_warning_purchase", "Warnings", crate::WARNING_GROUP)?
+    .block("Orders")?.sequence(100).access(&["base.group_system"])
+PanelItemDecl::module_toggle("purchase.module_stock_dropshipping", "Direct supplier delivery", "stock_dropshipping")?
+    .block("Logistics")?.sequence(200).access(&["base.group_system"])
+```
+
+- **Module toggle**: installs or uninstalls the named addon. Not the declaring addon or one it depends on; a name the
+  addon directory does not know is refused when the page is published.
+- **Group toggle**: on, `base.group_user` implies the group; off removes that implication. The page calls
+  `ir.config.setting` `erp_toggle_group(key, enabled)` (Settings administrators only). The group must belong to an
+  addon in your dependencies, must not be `base.group_user`, `base.group_portal` or `base.group_public`, and must be
+  a **light group**: extend `res.groups` and append its external id in `_get_light_group_xmlids`
+  (`addons/stock/src/res_groups.rs`), then reclassify from data with a `data_callable` method called by
+  `<function model="res.groups" name="_purchase_reclassify_light_groups"/>`
+  (`addons/purchase/security/purchase_group_classification.xml`).
+- Both toggles are readable only by `base.group_system`: `.access(&["base.group_system"])`.
+
+### Act when a setting is saved
+
+To change records when a value changes, extend `ir.config.setting` and override `_apply_value_changes(this, tx,
+company: Option<i64>, changes: ValueMap, sup: Super)`; act on your keys in `changes`, then call
+`sup.call(tx, this.as_records(), (company, changes))`. `addons/stock/src/settings.rs` turns the replenish-on-order
+route on or off this way, refusing a call without a company scope.
+
 ## 3. Your addon's own settings page
 
 Settings group by key prefix. To give the addon a Configuration > Settings entry, ship a service form that opens the
@@ -137,3 +166,8 @@ from data-only or WASM addons.
 - addons/theme_office_blue/src/lib.rs
 - crates/erp-registry/src/settings.rs
 - addons/stock/src/migrations.rs
+- addons/stock/src/settings.rs
+- addons/stock/src/res_groups.rs
+- addons/purchase/src/settings.rs
+- addons/purchase/security/purchase_group_classification.xml
+- docs/development.md

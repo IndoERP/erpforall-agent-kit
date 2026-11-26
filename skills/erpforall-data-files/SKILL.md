@@ -29,6 +29,14 @@ Root is `<erp>` (legacy `<odoo>`, `<openerp>`, `<data>` still read). Inside: `re
 - One2many children: `<field name="line_ids"><record ...>` creates the parent first, then each child with the inverse set.
 - Comments inside plain text values, DOCTYPE and custom entities are refused.
 - `<function model="..." name="..."/>` calls a method; see `data-functions.md`.
+- Forms the shipped demo data uses: `eval="[Command.set([ref('a'), ref('b')])]"` for a many2many; `ref()` inside a `search` domain (`search="[('product_tmpl_id', '=', ref('product.product_demo_rak'))]"`); and, to close a circular reference after both records exist, a write call with `<value>` arguments:
+
+```xml
+<function model="hr.department" name="write">
+    <value eval="[ref('hr_demo_dept_management')]"/>
+    <value eval="{'manager_id': ref('hr_demo_emp_nadia')}"/>
+</function>
+```
 - `<menuitem>` and view records need the `ir.ui.menu` and `ir.ui.view` models of `base`: a module that does not depend on `base` fails loading with an error naming the missing model.
 
 ## noupdate and upgrades
@@ -63,3 +71,5 @@ The framework's own base addons ship default records for every model they define
 - addons/contacts/demo/contacts_demo.xml
 - addons/sample_library/demo/sample_library_demo.xml
 - addons/uom/data/uom_data.xml
+- addons/hr/demo/hr_demo.xml
+- addons/purchase/demo/purchase_demo.xml

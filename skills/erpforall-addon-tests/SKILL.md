@@ -44,7 +44,16 @@ Dev-dependencies the real addons use: `erp-testkit`, `tokio` (features `rt`, `ma
 
 - Keep single-addon unit, manifest and registry tests inside `addons/<my_addon>/tests/` using only `erp-sdk`, other addons and `erp-testkit` (dev-dependency).
 - Put multi-addon or full-stack integration tests that need core crates (`erp-orm`, `erp-modules`, `erp-security`) in an isolated L13 domain suite crate under `crates/erp-suite-<domain>` instead of adding leaf addons to `crates/erp-test-models` or domain tests to `crates/erp-cli`.
-- Run targeted checks instead of `--workspace` while iterating: `erpforall-addon-graph impact <changed-file>...` lists the affected addons and suggested Cargo packages; in a repository checkout run `scripts/check.sh --affected --tests` or `scripts/check.sh -p erp-addon-<name> -p erp-suite-<name> --tests`.
+- Run targeted checks instead of `--workspace` while iterating: `erpforall-addon-graph impact <changed-file>...` lists the affected addons and suggested Cargo packages; in a repository checkout run `scripts/check.sh --affected --tests` or `scripts/check.sh -p erp-addon-<name> -p erp-suite-<name> --tests`. `--affected [BASE]` compares with `origin/main` by default, `--committed-only` limits it to `BASE...HEAD`, and `--affected` together with `-p` is refused.
+
+### A domain suite crate (`crates/erp-suite-<domain>`)
+
+Pattern from `crates/erp-suite-hr`:
+
+- `Cargo.toml` has only `[dev-dependencies]`: the addons under test, `erp-orm`, `erp-modules`, `erp-testkit`, `erp-addon-web` and `erp-security` with `features = ["test-support"]`, and `tokio` with `rt`, `rt-multi-thread`, `macros`. `src/lib.rs` is the licence line and one doc comment. No crate may depend on a suite, a suite may not depend on `erp-cli`, and every suite must be a workspace member (`scripts/check-layers.py`, rule 8).
+- Install once, clone per test: `TemplateDb::clone_or_init("erp-suite-hr:hr:v2", |pool| async move { ... })` initializes the database and installs the addon inside the closure, then each test gets a clone and calls `system.load()`. Change the key when the schema or seed changes.
+- Acting as a user: build a second `Orm` with `erp_security::source::PolicySource` as its policy after the commit that creates the users (`policy_orm` in `crates/erp-suite-sale/tests/support/report_access.rs`); the superuser ORM proves nothing about access.
+- Install-heavy tests run on a thread with a 16 MiB stack and a multi-thread runtime (the `run` helper in `hr_actions.rs`).
 
 ## 4. Access with more than one user
 
@@ -73,7 +82,7 @@ When you work inside a checkout of the ERPForAll repository, `erpforall-test <le
 
 ## Not covered here
 
-Parity or performance test setups, CI configuration of the framework, the typed mock RPC helpers of `component-testing.md`, test levels for a project that only holds addons (use sections 1 to 3 there).
+Parity or performance test setups, CI configuration of the framework, the typed mock RPC helpers of `component-testing.md`, test levels for a project that only holds addons (use sections 1 to 3 there). Upgrade identity: `erp module upgrade` can refuse with `identity unknown, run identity-enroll first` or ask for `--identity-previous <release>` (`docs/deployment.md`); the procedure is not described there, so it is not covered here.
 
 ## Sources
 
@@ -96,3 +105,9 @@ Parity or performance test setups, CI configuration of the framework, the typed 
 - docs/development.md
 - CONTRIBUTING.md
 - addons/mail/Cargo.toml
+- crates/erp-suite-hr/Cargo.toml
+- crates/erp-suite-hr/src/lib.rs
+- crates/erp-suite-hr/tests/hr_actions.rs
+- crates/erp-suite-sale/tests/support/report_access.rs
+- scripts/check-layers.py
+- docs/deployment.md

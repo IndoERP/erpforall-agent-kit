@@ -111,6 +111,14 @@ pub property_stock_customer: Option<RecId>,
 
 Supported kinds: char, text, html, boolean, integer, float, monetary, selection, date, datetime, many2one (bigint is admitted but the guide lists it as untested). Refused: other kinds, computed, related, inverse, generated or tracked company-dependent fields, a translated one, upsert on the model, keyset pagination ordered by the field. Reading or writing it needs a current company. Do not switch an existing field to company-dependent without the migration described in `company-dependent-fields.md`, "Existing data".
 
+## Encrypted fields (native)
+
+`#[field(char, encrypted = true)]` (or `text`) stores the value encrypted in a `bytea` column; the application reads and writes the clear value. The field must be stored (or related to an encrypted field). It is refused together with translate, company-dependent, an index, a collation, a key, an exclusion constraint or tracking. Conditions, sorting, grouping and aggregates on it are refused, and your SQL must not read the column. Declaring it plain again later is refused. Every node then needs `field_key_file` in its configuration, or the commands that build the ORM stop with an error naming the field (`docs/deployment.md`, "Encrypted fields"). No shipped addon uses it yet; the declaration rules are tested in `crates/erp-test-models/tests/field_encryption.rs`. Model files (`models/*.toml`) have no `encrypted` key.
+
+## Naming the fields of a refusal
+
+`Error::validation("End date is before start date.").with_fields(["date_start", "date_end"])` attaches the field names (JSON-2 error body, `context.fields`) so the client can show the message on those fields; a refusal about the whole record names none.
+
 ## Values an administrator may change
 
 A value an administrator or operator may change (a limit, an interval, a default choice) is not a constant in code: declare a setting or a system parameter with a default, a floor and a bound (skill `erpforall-settings`), or use a company-dependent field when it is a value per company.
@@ -133,3 +141,7 @@ Delegation (`inherits`), partitioned models, money/currency handling, exclusion 
 - addons/sample_library/models/20_book.toml
 - addons/sample_library/models/30_loan.toml
 - addons/acceptance_notes/src/models.rs
+- crates/erp-macros/src/model.rs
+- crates/erp-test-models/tests/field_encryption.rs
+- crates/erp-fields/src/error.rs
+- docs/deployment.md

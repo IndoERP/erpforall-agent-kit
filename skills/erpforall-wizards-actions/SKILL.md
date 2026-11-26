@@ -67,6 +67,29 @@ A button's `#[method(wire, rpc)]` / `#[rpc(effect = ...)]` method returns JSON m
 ```
 
 - Pass only literal `default_<field>` keys for real fields of `res_model` (never `active_*`, company, or session keys). Supply either `views` or `view_id`/`view_mode`, never both.
+- A dialog (`target` `"new"`) opens one form only (`views` `[[false, "form"]]`, or `view_mode` `form`) and takes **no `domain`**. A window result without `target` is refused.
+
+### Opening records in the page (`target: "current"`)
+
+A stat button or a drill that opens related records stays in the page. Two shapes are admitted (members: `type`, `name`, `res_model`, `target`, `views`, `domain`, `context`, `res_id`):
+
+```json
+{"type": "ir.actions.act_window", "name": "Contract History", "res_model": "hr.employee.version",
+ "target": "current", "views": [[false, "list"], [false, "form"]],
+ "domain": [["employee_id", "=", 7]], "context": {"default_employee_id": 7}}
+```
+
+```json
+{"type": "ir.actions.act_window", "name": "Sales Order", "res_model": "sale.order",
+ "res_id": 42, "target": "current", "views": [[false, "form"]]}
+```
+
+- **A list:** `views` is `list`, optionally followed by `form`, and nothing else (no kanban, hierarchy or `view_mode`); `domain` is a required literal array.
+- **One record:** `res_id` with exactly one `[id|false, "form"]` view and no `domain`.
+- `context` takes `default_<field>` literals, `search_default_<name>` (a boolean, safe integer or text up to 256 bytes), and booleans `active_test` and `create`.
+- Integers in `domain` must fit the browser's safe range (2^53 - 1). The caller's read access on the records is checked when the result is shown.
+
+A record method returns the dictionary as a `Value::Map`; `addons/hr/src/employee.rs` (`action_open_versions`) is the model to copy.
 - After completing the work in `action_confirm`, show a toast and close the modal:
 
 ```json
@@ -127,3 +150,5 @@ Standalone client extension bundling (`static/dist/manifest.json` in `ui-assets.
 - examples/wasm/sample_library_wasm/src/lib.rs
 - addons/web/src/action_result.rs
 - addons/web/static/src/client/wizard-dialog.ts
+- addons/hr/src/employee.rs
+- addons/sale/src/report.rs

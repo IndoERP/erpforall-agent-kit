@@ -39,7 +39,9 @@ Run these checks before setting a change ready for review or opening a pull requ
 
 - **XPath selectors:** never match `<xpath>` or locator nodes by translated attributes (`string`, `help`, `placeholder`, `confirm`, `title`); match by `@name`, tag structure, or `hasclass(...)` (`views.md`).
 - **Widget & component discipline:** field widgets emit edits via `props.change(value)` (never bypassing form state with direct writes), unregister listeners/timers/overlays inside `dispose()`, and attach cleanly in `static/dist/manifest.json` (`human-client-extensions.md`).
-- **Commit hygiene:** signed off (`git commit -s`), no unrelated edits, no generated files edited by hand, tests run for the changed behaviour.
+- **Commit hygiene:** signed off (`git commit -s`), no unrelated edits, no generated files edited by hand, tests run for the changed behaviour. `scripts/check-dco.py BASE HEAD` fails on any non-merge commit without `Signed-off-by:`; `git rebase --signoff BASE` adds it to commits already made.
+- **Suite crates:** `python3 -I scripts/check-layers.py` passes (rule 8: nothing depends on an `erp-suite-*` crate, a suite does not depend on `erp-cli`, every suite is a workspace member).
+- **Reports and secrets:** a report provider reads as the caller through the ORM (skill `erpforall-security`); a stored secret is an `encrypted = true` field (skill `erpforall-models-fields`).
 
 ## 6. Optional specialist review lenses
 
@@ -66,3 +68,5 @@ Host build/CI workflows of the framework repository itself or visual design revi
 - docs/addon-guide/settings.md
 - docs/addon-guide/migrations.md
 - docs/addon-guide/human-client-extensions.md
+- scripts/check-dco.py
+- scripts/check-layers.py

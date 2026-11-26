@@ -75,6 +75,20 @@ Define a group as a record (data file, usually `<erp noupdate="1">`):
 - **Instead of `sudo`**, open a scoped, audited elevation block that names exactly what the code may read or write: `tx.elevated(env, ElevationReason::new("my_addon.reason")?, scope, async |tx, env| { ... })` with an `ElevationScope` of `ScopeItem`s (model and operations). Restrictions, including the company restriction, still apply; the block's environment is valid only inside the body; library code that calls `sudo(true)` fails inside a block. Read `access.md`, "Scoped elevation blocks", before using it.
 - `with_user(other)` is admitted only for the `System` principal, for your own user, or with the capability `principal.impersonate`; to ask whether a user is in a group use `tx.user_has_group(&env, user, "module.group")`.
 
+## Read as the caller, not around the rules
+
+`records.check_access(tx, Operation::Read)` on an empty recordset (`env.records("sale.order")?`) checks only the model-level right. Raw SQL after it (`tx.query("SELECT ... FROM sale_order ...")`) then reads every row: record rules (a salesperson limited to their own orders) and field groups (a margin field restricted to a group) do not apply. The Sales, Purchase and aged reports were rewritten for this reason. Read through the ORM as the caller instead, with `search`, `search_count`, `read_rows` and `_read_group`:
+
+```rust
+let groups = env.records("sale.order")?
+    ._read_group(cx.tx(), ReadGroup::new(domain)
+        .groupby(["partner_id"])
+        .aggregates(["amount_untaxed:sum", "amount_total:sum"]))
+    .await?;
+```
+
+When raw SQL is unavoidable (a migration, a framework table), it runs without the caller's rules; say so at the call site. The same rule applies to report providers (skill `erpforall-dynamic-reports`).
+
 ## A preference on My Preferences
 
 A field you add to `res.users` is administrator-only unless marked `user_writeable`. To let users set their own value, add the field with `user_writeable` and inherit the dialog `base.users_preferences_form`, placing the field in its named group `other_preferences` (or `calendar_preferences`), as `mail` does for the notification choice:
@@ -122,3 +136,5 @@ Capabilities, full authentication and cooldown internals, the `erp access` repor
 - addons/uom/security/ir.access.csv
 - addons/product/security/product_security.xml
 - addons/base/data/bootstrap_groups.xml
+- addons/sale/src/report.rs
+- addons/account_reporting/src/aged_partner.rs

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- **New `erpforall-dynamic-reports` skill**: on-screen reports of the `reporting` addon. Data reports (lines, columns, aggregate and formula expressions), native providers (`ReportProvider`, `ProviderSpec`, options, lines and cells, paging, drills), the `reporting.report` client action, native functions, bounds settings and tests.
+- **Updated skills**, from the public framework code: `erpforall-security` (read as the caller), `erpforall-wizards-actions` and `erpforall-menus-actions` (in-page window results, dialog rules, report client action), `erpforall-migrations` (shipped `noupdate` records, predecessor fixtures), `erpforall-settings` (module and group toggles, `_apply_value_changes`), `erpforall-models-fields` (encrypted fields, `Error::with_fields`), `erpforall-data-files` (demo data forms), `erpforall-views` (hierarchy, activity, search panel, tones, list allow-list), `erpforall-client-extensions` (template-free widgets, navigation, translations, refused page), `erpforall-addon-tests` (suite crates, template databases, policy ORM), `erpforall-jobs` (recurring jobs), `erpforall-review` (DCO, layer rule 8).
+- **Pin**: `PUBLIC_SOURCE_REVISION` moves to `7e42b120663d`.
+- **`docs/skill-drift-2026-11.md`**: what each skill lacked, what changed, and what was left out and why.
+
 ## 0.5.0
 
 - **Test levels (`tools/test-levels.py`, command `erpforall-test`)**: `basic`, `normal` and `advanced` runs for a checkout of the framework. `basic` checks the affected packages without a database and rebuilds the local instance; `normal` adds the tests of the affected packages and the changed client tests; `advanced` runs the whole workspace and the whole client suite. Every run writes a receipt (revision, commands, exit codes, durations, logs, tool versions); `status --require LEVEL` answers whether the current revision has a passing run. A run is marked `invalid` when the working tree changed under the tests, and environment failures (database lock memory, an addon edited during install) are named as such. Database passwords are removed from output, logs and receipts.

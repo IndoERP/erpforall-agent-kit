@@ -56,6 +56,8 @@ description: Add menus and window actions to an ERPForAll addon - ir.actions.act
 
 ## Other action types
 
+A **method** that returns an action (a stat button, a drill) is checked against a narrower contract than these records: an in-page list is `target` `"current"` with `views` list then form and a literal `domain`, one record is `res_id` with one form view, a dialog is `target` `"new"` with no domain. Shapes and examples: skill `erpforall-wizards-actions`. An on-screen dynamic report opens through an `ir.actions.client` record with tag `reporting.report` (skill `erpforall-dynamic-reports`).
+
 `ir.actions.act_url`, `ir.actions.client`, `ir.actions.server` and `ir.actions.report` exist and share one id space with window actions. Full-screen client actions (`ir.actions.client`) and modal wizard actions (`target="new"`) are covered in the `erpforall-wizards-actions` skill. Server actions (including `code` actions, sandboxed Luau scripts) run with the caller's rights unless an administrator sets `run_as_superuser`; `object_copy` and `webhook` are not available yet. Report actions: skill `erpforall-reports`. To show an addon's own settings page, `acceptance_notes` declares a form on `ir.config.setting` with `<widget name="web.settings" scope_kinds="global,company" app="acceptance_notes"/>` and a window action over it; copy that file's last records rather than inventing the pattern; declaring the settings themselves is in the `erpforall-settings` skill.
 
 ## Not covered here
@@ -74,3 +76,4 @@ Contextual (binding) actions (`binding_model_id`, `binding_type`), server-action
 - addons/base/src/ir_ui_menu.rs
 - addons/web/static/src/client/icons.ts
 - addons/web/src/action_result.rs
+- addons/reporting/src/client_action.rs

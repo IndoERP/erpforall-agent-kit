@@ -82,9 +82,33 @@ registerFieldWidget("acceptance_notes.note_title", { kinds: ["char"], render: el
 
 Register contributions from an exported synchronous `register(ctx)` callback; importing a module alone must never patch or register anything. Registries (`RegistryHub.define(category, guard)` then `.add(key, value, {sequence})`), services (`class` with `static dependencies` and `static start(env, deps)`; `useService(Class)` in `setup()`), and patches (`ctx.patch(Class, sup => ({ method() { return sup.method.call(this); } }))`, `ctx.patchStatic`) are described in `client-extensions.md`. A later addon's patch that replaces a member without calling `sup` is flagged by the conflict lint (`node web/scripts/lint-patches.mjs tsconfig.json patches.json`, run with the pinned Node toolchain). Patches refuse `Object`, `Function`, `Array` prototypes and the keys `constructor`, `prototype`, `__proto__`.
 
+## A widget without templates
+
+A field widget can draw its own DOM with `render(env)` and no component or templates (`"templates": []` in `client.json`), as the HR org chart does. Declare the name in Rust and register it in `static/src/client.ts`:
+
+```rust
+#[erp_sdk::__private::linkme::distributed_slice(erp_sdk::views::FIELD_WIDGETS)]
+#[linkme(crate = erp_sdk::__private::linkme)]
+static HR_ORG_CHART_WIDGET: erp_sdk::views::WidgetDecl =
+    erp_sdk::views::WidgetDecl::new("hr.org_chart", &["one2many"]);
+```
+
+```ts
+registerFieldWidget("hr.org_chart", { kinds: ["one2many"], render: renderOrgChart });
+```
+
+`render` returns the node and a `dispose`; reload on `env.onRecordEvent?.(event => ...)` for `saved` and `discarded`.
+
+## Navigation, translations, refused pages
+
+- **Navigation from addon code** (`ShellNavigation`, exported with `Route` and `ActionRequest`): field widgets in the main form, list cells and kanban cards (not dialogs or one2many lines), services, systray items and client actions get `navigate(route)` and `openAction({xmlId, viewMode, domain, context})`. `openAction` opens a window action by external id as its list, or a new record in its form; context takes `default_<field>` keys only. A route naming a `method_action` is refused; both do nothing once the page was left.
+- **Translations**: write client texts as `t("No records yet")` or `t("No {name} records yet", { name })`, and ship a catalog with `registerTranslations("id_ID", { "No records yet": "…" })`. An empty translation, a changed placeholder, or two catalogs translating one text differently is refused, naming the text. `node scripts/extract-client-strings.mjs <addon>` (in `web/`) prints a catalog skeleton; a `t()` argument must be one plain string literal.
+- **Refused screen**: `registerRefusedActionPage(key, { create(env) })` replaces the body of "This screen is not open to your account." (at most one page is registered); `env` has `rpc` and `navigate`; `create` returns `{ element, dispose }`.
+- `localDateIso` is exported too (the HR client imports it); its exact contract is not covered here.
+
 ## Not covered here
 
-Reusable editors (code, date/time, HTML, signature, domain), dialogs and notification services, themes, full-screen client actions: see `human-client-extensions.md`, `ui-assets.md`, `web-client.md`, `wizard-dialogs.md`, `client-actions.md`, or the `erpforall-wizards-actions` skill.
+Saved favourites and list export/import menus (`addons/web/static/src/client/search/`); `brand.json` and `login.css` in `static/brand/` (accepted by `addons/web/src/assets/assembly.rs`, but no addon ships them). Reusable editors (code, date/time, HTML, signature, domain), dialogs and notification services, themes, full-screen client actions: see `human-client-extensions.md`, `ui-assets.md`, `web-client.md`, `wizard-dialogs.md`, `client-actions.md`, or the `erpforall-wizards-actions` skill.
 
 ## Sources
 
@@ -106,3 +130,10 @@ Reusable editors (code, date/time, HTML, signature, domain), dialogs and notific
 - addons/acceptance_notes/static/tsconfig.json
 - addons/acceptance_notes/src/lib.rs
 - addons/acceptance_notes/views/acceptance_notes_views.xml
+- addons/hr/src/lib.rs
+- addons/hr/static/src/client.ts
+- addons/hr/static/client.json
+- addons/web/static/src/client/translate.ts
+- addons/web/static/src/client/refused-action.ts
+- addons/web/static/src/client/activity-view.ts
+- docs/development.md

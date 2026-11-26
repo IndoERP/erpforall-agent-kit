@@ -168,9 +168,45 @@ A kanban card can be one computed `text` field drawn with `widget="dashboard_car
 - Moving the root, or moving a node into itself, is refused. Extensions apply in `(priority, id)` order.
 - Reference another addon's view by external id: `ref="base.partner_form"`; that addon must be in `depends`.
 
+- The list root admits only `string`, `limit`, `create`, `edit` and `delete`. A list `<field>` has no `optional`, `decoration-*`, `sum` or `column_invisible`: such attributes refuse the view ("unsupported by the current human UI contract").
+
+## More field and form options
+
+- Badge colour per value: on `widget="badge"` or `label_selection` (selection fields only), `options="{'tone_success': ['paid', 'reconciled'], 'tone_warning': ['draft'], 'tone_danger': ['canceled', 'rejected']}"`; also `tone_info` and `tone_muted`. Every value listed must be one of the field's choices.
+- `invisible="..."` works on a `<page>` and on the ribbon: `<widget name="web_ribbon" title="Paid" bg_color="bg-success" invisible="state != 'posted' or payment_state != 'paid'"/>`. Every name in the expression must be a field shown by the view.
+- More widgets: `progressbar` (integer or float, 0 to 100) and `many2one_avatar` (many2one with an initials chip), as in `addons/hr/views/hr_config_views.xml`.
+- New, Edit and Delete also follow the caller's model rights: the view's `create`/`edit`/`delete` are narrowed to them (`addons/web/src/view_rights.rs`). Record rules are still checked when the command runs.
+- A stat button whose method opens one record returns `res_id` with one form view; one that opens a list returns `target` `"current"` with list and form views and a domain (shapes: skill `erpforall-wizards-actions`).
+
+## Search panel
+
+A `<searchpanel>` inside `<search>` adds a sidebar of filter sections to the list, kanban, pivot, graph, hierarchy and activity views it names:
+
+```xml
+<searchpanel view_types="kanban,list,hierarchy,activity,graph,pivot">
+    <field name="company_id" icon="building" enable_counters="1" expand="1"/>
+    <field name="department_id" icon="users" enable_counters="1" hierarchize="1" expand="1"/>
+</searchpanel>
+```
+
+`<searchpanel>` takes `view_types` (default `list,kanban`) and `invisible`; each `<field>` takes `name`, `string`, `select` (`one` or `multi`), `icon`, `enable_counters`, `expand`, `limit`, `invisible`, `hierarchize`, `domain`, `groupby`. The field must be stored and a many2one, many2many or static selection; `domain` and `groupby` only on relational fields; at most 64 sections.
+
+## Hierarchy and activity views
+
+```xml
+<hierarchy parent_field="parent_id" child_field="child_ids" color_field="color" count_field="total_employee" draggable="1" label="sub-departments">
+    <field name="name"/>
+    <field name="manager_id"/>
+</hierarchy>
+```
+
+- `<hierarchy>`: `parent_field` (required, a stored many2one to the same model), `child_field` (a one2many to the same model), `avatar_field` (binary), `color_field` and `count_field` (integer), `draggable` (dragging a card changes its parent; default off), `label` (1 to 64 bytes). Only `<field>` children.
+- `<activity avatar_field="image_128">` with `<field>` children: one row per record, one column per activity type; takes only `string` and `avatar_field`. The model must carry activities (skill `erpforall-chatter`).
+- List the type in the action: `<field name="view_mode">kanban,list,hierarchy,activity,graph,pivot,form</field>`.
+
 ## Not covered here
 
-The full attribute and refusal tables of kanban, pivot, graph and calendar views (`kanban-view.md`, `pivot-view.md`, `graph-view.md`, `calendar-view.md`); activity, gantt and other view types; the form's visual layout rules (`views.md`, "Form header band and field presentation"); `get_views` wire format; custom view types.
+The full attribute and refusal tables of kanban, pivot, graph and calendar views (`kanban-view.md`, `pivot-view.md`, `graph-view.md`, `calendar-view.md`); gantt and other view types; the form's visual layout rules (`views.md`, "Form header band and field presentation"); `get_views` wire format; custom view types.
 
 ## Sources
 
@@ -195,3 +231,15 @@ The full attribute and refusal tables of kanban, pivot, graph and calendar views
 - addons/web/static/src/client/button-prompt.ts
 - addons/web/static/src/client/record-form.ts
 - addons/web/static/src/client/search/search-arch.ts
+- addons/web/src/h18_hierarchy.rs
+- addons/web/src/h18_activity.rs
+- addons/web/src/h18_panel.rs
+- addons/web/src/view_rights.rs
+- addons/web/src/lib.rs
+- addons/web/static/src/client/search-panel.ts
+- crates/erp-views/src/wire.rs
+- addons/hr/views/hr_department_views.xml
+- addons/hr/views/hr_employee_views.xml
+- addons/hr/views/hr_config_views.xml
+- addons/account/views/account_batch_payment_views.xml
+- addons/account/views/account_journal_views.xml

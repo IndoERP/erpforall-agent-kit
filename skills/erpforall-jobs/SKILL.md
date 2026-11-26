@@ -90,6 +90,30 @@ async fn schedule(tx: &mut Transaction, record_id: i64) -> Result<()> {
 - **Extend another addon's step:** override the target model's step method with `#[method(override)]` and call `sup` so both run in one chunk.
 - **Data-only addons** cannot declare job kinds; they can schedule existing server actions via `ir.cron` XML records (`erpforall-data-files`).
 
+## 4. Recurring jobs (native)
+
+Give one of your step job kinds a `Schedule`:
+
+```rust
+use erp_sdk::jobs::{HandlerRef, JobKindDecl, Schedule};
+
+erp_sdk::jobs::register_job_kind!(
+    DAILY_REFRESH,
+    JobKindDecl::new(
+        "my_addon",
+        "my_addon.daily_refresh",
+        HandlerRef::Step { model: "my_addon.record", method: "refresh_step" },
+    )
+    .schedule(Schedule::daily_at(1, 0, "Asia/Jakarta", "my_addon.user_scheduler"))
+);
+```
+
+- `Schedule::daily_at(hour, minute, time_zone, run_as)` (wall-clock time in an IANA zone), or `Schedule::every(interval, run_as)` / `Schedule::every_from(interval, offset, run_as)` (60 s to 31 days, aligned to the Unix epoch plus the offset).
+- `run_as` is the external id of an active internal `res.users` record your addon ships in its data; a scheduled kind never runs as the system.
+- Install or upgrade creates the kind's one job row; uninstall removes it (refused while it runs). Code cannot enqueue that row.
+- The step receives `{"scheduled_for": "<RFC 3339>", "previous": "<RFC 3339>" | null}`. Missed runs collapse into one run for the latest missed instant, so process "the period since `previous`" and stay idempotent.
+- On `finished` the row is rescheduled; a dead-lettered run waits for an operator to requeue it.
+
 ## Not covered here
 
 Shared node/database job settings (`Orm::job_settings_snapshot`), isolated maintenance runner composition (`JobRunnerBuilder::maintenance_kinds`), operator queue settings (`jobs.md`).
@@ -99,3 +123,6 @@ Shared node/database job settings (`Orm::job_settings_snapshot`), isolated maint
 - docs/addon-guide/jobs.md
 - addons/base/src/ir_job.rs
 - addons/base/src/ir_cron/mod.rs
+- docs/development.md
+- crates/erp-orm/src/jobs/schedule.rs
+- crates/erp-test-models/tests/jobs_schedule.rs
