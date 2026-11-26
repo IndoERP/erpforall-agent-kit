@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0
+
+- **Test levels (`tools/test-levels.py`, command `erpforall-test`)**: `basic`, `normal` and `advanced` runs for a checkout of the framework. `basic` checks the affected packages without a database and rebuilds the local instance; `normal` adds the tests of the affected packages and the changed client tests; `advanced` runs the whole workspace and the whole client suite. Every run writes a receipt (revision, commands, exit codes, durations, logs, tool versions); `status --require LEVEL` answers whether the current revision has a passing run. A run is marked `invalid` when the working tree changed under the tests, and environment failures (database lock memory, an addon edited during install) are named as such. Database passwords are removed from output, logs and receipts.
+- The commands of each level come from the framework's own scripts and guides (`scripts/check.sh`, `scripts/install.sh`, `CONTRIBUTING.md`). The tool's logic has unit tests; a complete run of each level on a real checkout has not been recorded yet.
+- **`erpforall-addon-tests` skill**: new section on the three levels, when each is enough, and what each proves.
+- **Installer**: links `erpforall-test`; the help text names all four commands.
+
 ## 0.4.0
 
 - **Static layer lint in `tools/addon-lint.py`**: validates native addon `Cargo.toml` dependencies so forbidden core crates (`erp-orm`, `erp-modules`, `erp-security`, `erp-cli`, `erp-suite-*`, non-dev `erp-testkit`) are flagged before `scripts/check-layers.py` runs, and guides full-stack tests to L13 `crates/erp-suite-<name>` crates.

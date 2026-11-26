@@ -1,6 +1,6 @@
 # ERPForAll agent kit
 
-Skills and three small tools that help an AI coding agent build correct ERPForAll
+Skills and four small tools that help an AI coding agent build correct ERPForAll
 addons: manifest and layout, models and fields, views, menus and actions, access control, data files, tests, client
 extensions, the chatter, reports, settings, attachments, WebAssembly packages, migrations, background jobs, wizards
 and client actions, scale primitives, and pre-review checks. It works with Claude Code, OpenAI Codex CLI and Google
@@ -16,7 +16,7 @@ Licence: `MIT OR Apache-2.0`.
 
 Clone this repository, then run `install.sh` for your agent. It symlinks the skill folders (add `--copy` to copy),
 is safe to repeat, never overwrites anything it did not create, and accepts `--dry-run`, `--scope project`,
-`--project-dir DIR` and `--uninstall`. It also links three commands into `~/.local/bin` (`--no-tools` skips that).
+`--project-dir DIR` and `--uninstall`. It also links four commands into `~/.local/bin` (`--no-tools` skips that).
 
 | Agent | Command | Skills end up in |
 |---|---|---|
@@ -84,6 +84,22 @@ Python 3.10+, standard library only.
   `impact <file>...` shows what a change reaches; `context "<task>"` lists the places to read first; `export`
   prints the whole graph as JSON. A worked example with two addons and sample output is in
   [examples/README.md](examples/README.md).
+
+## Test levels
+
+For work inside a checkout of the ERPForAll repository, `tools/test-levels.py <level>` (command `erpforall-test`)
+runs one of three levels of the framework's own checks and writes a receipt for the revision it ran on:
+
+| Level | When | What it costs |
+|---|---|---|
+| `basic` | while you build: check that it compiles and lints, then try it in your local instance | minutes, no database |
+| `normal` | before you push: the tests of what your change affects | tens of minutes, a PostgreSQL 18 server |
+| `advanced` | before a release or a merge to a tested branch: the whole workspace and the whole client suite | an hour or more |
+
+`erpforall-test <level> --dry-run` prints the commands first. `erpforall-test status --require normal` tells a
+maintainer whether the current revision has a passing run of that level. Details and the two ways a run can be
+meaningless (a tree edited during the tests, a database server short of lock memory) are in the
+`erpforall-addon-tests` skill.
 
 ## Develop the kit
 

@@ -43,7 +43,7 @@ class InstallTest(unittest.TestCase):
                 self.assertTrue(link.is_symlink(), link)
                 self.assertEqual(os.readlink(link), str(ROOT / "skills" / name))
                 self.assertTrue((link / "SKILL.md").is_file())
-        for cmd in ("erpforall-new-addon", "erpforall-addon-lint"):
+        for cmd in ("erpforall-new-addon", "erpforall-addon-lint", "erpforall-addon-graph", "erpforall-test"):
             self.assertTrue((self.home / ".local/bin" / cmd).is_symlink())
 
     def test_idempotent(self):

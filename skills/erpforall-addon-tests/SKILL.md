@@ -54,9 +54,26 @@ An access CSV is an input, not the expected answer: write the expected outcome p
 
 Use `@erpforall/elang-test` from a workspace test: keep each test inside `withTestScope(async scope => { ... })` (it unmounts roots and restores registry and patch changes even when the callback rejects), mount with `scope.mount(ComponentClass, options)`, replace a service with `scope.mockService(CanonicalServiceClass, mockInstance)`, patch with `scope.patch` / `scope.patchStatic`. The package is test infrastructure: never import it from the entry point an addon ships. One scope per test realm at a time: no concurrent tests that share patch or registry state.
 
+## 6. Test levels in a checkout of the framework
+
+When you work inside a checkout of the ERPForAll repository, `erpforall-test <level>` (fallback `python3 <kit>/tools/test-levels.py <level>`) runs the framework's own commands for one of three levels and writes a receipt (revision, each command, its exit code, duration and log, tool versions) under `~/.erpforall/test-runs/<checkout>/`. Pick the level by what you need to know, and say in your report which one ran:
+
+| Level | Time | Needs | What it runs |
+|---|---|---|---|
+| `basic` | minutes | no database | `scripts/check.sh --affected origin/main` (layer check, `cargo fmt --all --check`, clippy `-D warnings` of the packages your diff affects), the web type check when client files changed, then `scripts/install.sh --rebuild` so the local instance runs your change (`--no-deploy` skips it, `--fast` when the instance was installed with `--fast`) |
+| `normal` | tens of minutes | `DATABASE_URL`, `cargo-nextest` | `scripts/check.sh --affected origin/main --tests` (the same checks plus the tests and doctests of the affected packages), the web type check, and the client test files your diff changed |
+| `advanced` | an hour or more | `DATABASE_URL`, `cargo-nextest` | `scripts/check.sh --tests` on the whole workspace, `pnpm --dir web install --frozen-lockfile`, the type check and the whole client suite |
+
+- `--dry-run` prints the plan without running anything; `--base REF` compares against another revision; `--deploy` adds the rebuild to `normal` or `advanced`.
+- `basic` proves nothing about behaviour: it compiles, lints and lets you try the change by hand. A rebuild upgrades no module, so a changed manifest, view, menu or data file reaches the database only through `erp module upgrade`; the tool lists the addons concerned.
+- The tests create and drop their own databases on the server `DATABASE_URL` names; the role must be allowed to create databases. The tool never prints the URL and removes passwords from what it shows and stores.
+- A run whose working tree changed while the tests ran is recorded as `invalid`, not as passed or failed: the tests install addons from the tree and refuse one that changes under them ("artifact changed during lifecycle operation"). Do not edit while a level runs, and do not share one working tree between a running level and another writer.
+- A PostgreSQL server with a small `max_locks_per_transaction` answers `out of shared memory` when many test databases install at once. The tool reads the setting when `psql` is available and runs the tests two at a time below 256; `--threads N` chooses the number.
+- `erpforall-test status --require normal` exits 1 unless a run of that level or a higher one passed on a clean tree at the current revision: use it before you push or ask for a merge. A receipt is evidence for the revision it names and no other.
+
 ## Not covered here
 
-Parity or performance test setups, CI configuration of the framework, the typed mock RPC helpers of `component-testing.md`.
+Parity or performance test setups, CI configuration of the framework, the typed mock RPC helpers of `component-testing.md`, test levels for a project that only holds addons (use sections 1 to 3 there).
 
 ## Sources
 
@@ -73,4 +90,9 @@ Parity or performance test setups, CI configuration of the framework, the typed 
 - addons/product/Cargo.toml
 - addons/uom/tests/install.rs
 - addons/uom/tests/support/guard_fixture.rs
+- scripts/check.sh
+- scripts/install.sh
+- docs/install.md
+- docs/development.md
+- CONTRIBUTING.md
 - addons/mail/Cargo.toml

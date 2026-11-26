@@ -18,7 +18,7 @@ Usage: install.sh --agent AGENT [options]      install skills
   --project-dir DIR  project folder for --scope project and --agents-md (default: current directory)
   --copy             copy the skill folders instead of symlinking them to this checkout
   --force            replace an existing symlink of the same name that points somewhere else
-  --bin-dir DIR      where to put erpforall-new-addon and erpforall-addon-lint
+  --bin-dir DIR      where to put erpforall-new-addon, erpforall-addon-lint, erpforall-addon-graph and erpforall-test
                      (default with --scope user: ~/.local/bin; none with --scope project)
   --no-tools         do not install the three command-line tools
   --agents-md        also add (or refresh) a marked block in DIR/AGENTS.md that points at the skill files
@@ -136,6 +136,7 @@ if [ "$tools" = 1 ] && [ -n "$bindir" ]; then
   install_tool new-addon.py erpforall-new-addon
   install_tool addon-lint.py erpforall-addon-lint
   install_tool addon-graph.py erpforall-addon-graph
+  install_tool test-levels.py erpforall-test
   case ":$PATH:" in *":$bindir:"*) ;; *) [ "$uninstall" = 1 ] || say "note    $bindir is not on PATH" ;; esac
 fi
 
