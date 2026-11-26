@@ -1,26 +1,9 @@
 #!/usr/bin/env python3
-"""A small graph of your own ERPForAll addons, for agents and people. Python 3.10+, standard library only (a subset TOML reader replaces tomllib on 3.10).
+"""Index ERPForAll addon and framework declarations with source locations (Python 3.10+).
 
-It reads the addons under one or more addons paths (no build, no network, no model) and answers, with a
-`path:line` for every fact, what models, fields, RPC methods, views, menus, actions and access rows your project
-defines, how addons depend on and extend each other, and what a change to a file can affect. Use it before you
-write a field name, a `ref=`, a model name in a view or an access row: if it prints "not found", it is not in
-your addons (it may come from the framework or from an addon outside --addons-path).
-
-  addon-graph.py [--addons-path DIR]... [--json] summary
-  addon-graph.py [--addons-path DIR]... [--json] model <name>
-  addon-graph.py [--addons-path DIR]... [--json] field <model> <field>
-  addon-graph.py [--addons-path DIR]... [--json] impact <path>...
-  addon-graph.py [--addons-path DIR]... [--json] context "<what you are about to do>"
-  addon-graph.py [--addons-path DIR]... export        # the whole graph as sorted JSON (format: docs/addon-graph-format.md)
-
-`--addons-path` defaults to ./addons. Exit status: 0 found, 1 not found (model, field), 2 usage error.
-
-What it reads: manifest.toml (depends), models/*.toml (data-only models and fields), native Rust sources in src/
-(`#[model]`, `#[extend]`, `#[field]`, `#[methods]` with `#[rpc]`), XML data files (views, view inheritance, menus,
-actions, other records), access CSV files. What it cannot read is listed by `summary` under "not understood" with
-the reason; an absence is only meaningful when that list does not cover the file you care about. It does not know
-the framework's own models: a reference to `res.partner` is accepted as external when no addon of yours defines it.
+From the framework root run erpforall-addon-graph summary. In a separate addon project,
+pass --framework-root DIR for core models, implicit fields and registered methods.
+Use --help for the query commands and docs/addon-graph-format.md for the JSON export.
 """
 from __future__ import annotations
 
@@ -28,6 +11,8 @@ import argparse
 import csv
 import difflib
 import io
+from collections import defaultdict
+from dataclasses import dataclass
 import json
 import re
 import sys
@@ -393,6 +378,8 @@ class Graph:
         self.actions: dict[str, dict] = {}
         self.access: list[dict] = []
         self.records: list[dict] = []
+        self.core_addons = {}
+        self.core = False
         self.unparsed: list[tuple[str, int, str]] = []
         self.owner_dirs: list[tuple[str, str]] = []  # (dir with trailing /, addon)
 
@@ -415,7 +402,17 @@ class Graph:
             if m not in out:
                 out.append(m)
                 todo += self.models.get(m, {}).get("inherits", [])
+        if self.core and "base" in out:
+            out.remove("base")
+            out.append("base")
         return out
+
+    def method_sources(self, model):
+        sources = defaultdict(list)
+        for ancestor in self.chain(model):
+            for key, method in self.models.get(ancestor, {}).get("methods", {}).items():
+                sources[key].extend(method["sources"])
+        return sources
 
     def fields_of(self, model: str) -> dict[str, dict]:
         found: dict[str, dict] = {}
@@ -425,7 +422,7 @@ class Graph:
         return found
 
 
-def build(paths: list[Path]) -> Graph:
+def build(paths: list[Path], framework: Path | None = None) -> Graph:
     g = Graph()
     for base in paths:
         if not base.is_dir():
@@ -442,13 +439,18 @@ def build(paths: list[Path]) -> Graph:
                                 "summary": data.get("summary") or data.get("name") or "", "native": (d / "Cargo.toml").is_file()}
             g.owner_dirs.append((rel(d) + "/", d.name))
     g.owner_dirs.sort(key=lambda t: -len(t[0]))
+    rust = RustIndex(g)
+    if framework is not None:
+        read_framework(g, rust, framework)
     for name, a in sorted(g.addons.items()):
         d = Path(a["dir"])
         for f in sorted((d / "models").glob("*.toml")) if (d / "models").is_dir() else []:
             read_model_toml(g, name, f)
-        for f in sorted((d / "src").rglob("*.rs")) if (d / "src").is_dir() else []:
-            read_rust(g, name, f)
-    # Rust types resolve to models once every addon was read
+        for file, text in addon_rust_sources(d / "src"):
+            rust.collect(name, file, text)
+    rust.resolve()
+    if framework is not None:
+        apply_core_fields(g)
     for name, a in sorted(g.addons.items()):
         d = Path(a["dir"])
         for f in sorted(d.rglob("*.xml")):
@@ -482,6 +484,10 @@ def read_model_toml(g: Graph, addon: str, f: Path) -> None:
             continue
         mod = g.model(name)
         mod["decls"].append((addon, "extends" if "name" not in m else "defines", p, ln))
+        if "name" in m:
+            mod["audit"] = m.get("kind") != "abstract" and m.get("log_access", True)
+        if m.get("row_version"):
+            mod["versioned"] = True
         mod["summary"] = m.get("description") or mod.get("summary", "")
         mod["inherits"] += [x for x in (m.get("inherit") or []) if isinstance(x, str)]
         for fld in m.get("field", []):
@@ -492,79 +498,479 @@ def read_model_toml(g: Graph, addon: str, f: Path) -> None:
                                                        "path": p, "line": fl, "string": fld.get("string")})
 
 
-def read_rust(g: Graph, addon: str, f: Path) -> None:
-    text = f.read_text(encoding="utf-8", errors="replace")
-    if not any(k in text for k in ("#[model(", "#[extend(", "#[methods(")):
-        return
-    p = f.as_posix()
+@dataclass
+class RustSource:
+    addon: str
+    path: str
+    module: str
+    clean: str
+    skel: str
+    imports: dict
+
+
+def production_text(text: str) -> tuple[str, str]:
     clean, skel = lex_rust(text)
-    types = g.__dict__.setdefault("_types", {})   # Rust struct name -> model name
-    pending = g.__dict__.setdefault("_pending", [])
-    for m in re.finditer(r"#\[(model|extend)\s*\(", skel):
-        ln = lineno(clean, m.start())
-        oc = close_of(skel, m.end() - 1)
-        if oc < 0:
-            g.bad(p, ln, "unbalanced attribute")
+    for m in reversed(list(re.finditer(r"#\[\s*cfg\s*\(\s*test\s*\)\s*\]", skel))):
+        start = skip_attrs(skel, m.end())
+        bound = re.search(r"[{;]", skel[start:])
+        if bound:
+            end = start + bound.start()
+            end = end if skel[end] == ";" else close_of(skel, end)
+            if end >= start:
+                blank = _blank(skel[m.start():end + 1])
+                clean = clean[:m.start()] + blank + clean[end + 1:]
+                skel = skel[:m.start()] + blank + skel[end + 1:]
+    return clean, skel
+
+
+def addon_rust_sources(root):
+    files = {f: f.read_text(encoding="utf-8", errors="replace") for f in sorted(root.rglob("*.rs"))}
+    excluded = set()
+    for file, text in files.items():
+        if "cfg" not in text or "mod " not in text:
             continue
-        pos, kw = parse_args(clean, m.end(), oc)
-        sm = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?struct\s+(\w+)").match(skel, skip_attrs(skel, oc + 2))
-        if not sm:
-            g.bad(p, ln, "no struct after the attribute")
+        clean, skel = lex_rust(text)
+        for cfg in re.finditer(r"#\[\s*cfg\s*\(\s*test\s*\)\s*\]", skel):
+            end = skip_attrs(skel, cfg.end())
+            external = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?mod\s+(\w+)\s*;").match(skel, end)
+            if external:
+                path = re.search(r'#\[\s*path\s*=\s*"([^"]+)"\s*\]', clean[cfg.end():end])
+                if path:
+                    excluded.add(file.parent / path[1])
+                else:
+                    parent = file.parent if file.stem in ("lib", "mod") else file.with_suffix("")
+                    excluded.update((parent / (external[1] + ".rs"), parent / external[1] / "mod.rs"))
+    for file, text in files.items():
+        if file not in excluded and "tests" not in file.relative_to(root).parts:
+            yield file, text
+
+
+def import_paths(tree: str, prefix: str = ""):
+    tree = tree.strip()
+    if "{" in tree:
+        head, children = tree.split("{", 1)
+        for part in split_top(children, 0, children.rfind("}")):
+            yield from import_paths(part, prefix + head.strip())
+    else:
+        source, *aliases = re.split(r"\s+as\s+", tree, maxsplit=1)
+        alias = aliases[0] if aliases else ""
+        path = prefix + source.strip()
+        yield alias.strip() or path.split("::")[-1], path
+
+
+def add_method(g, model, name, addon, path, line, exposure=None, effect=None, invocation=None):
+    origin = {"addon": addon, "path": path, "line": line}
+    if invocation:
+        origin["invocation"] = invocation
+    if exposure is not None:
+        origin.update(rpc=exposure, effect=effect)
+    methods = g.model(model)["methods"]
+    method = methods.setdefault(name, {**origin, "rpc": False, "effect": None, "sources": []})
+    method["sources"].append(origin)
+    method["rpc"], method["effect"] = exposure_of(method["sources"])
+
+
+def exposure_of(sources):
+    visible = [s for s in sources if s.get("rpc")]
+    if not visible or any(s.get("rpc") is False for s in sources):
+        return False, None
+    effects = [s["effect"] for s in visible if s.get("effect")]
+    severity = {"read": 0, "write": 1, "destructive": 2, "external": 3}
+    return True, max(effects, key=lambda e: severity.get(e, -1), default=None)
+
+
+def method_targets(src, target, offset):
+    """Expand the single-arm, identifier-only method templates used by native addons."""
+    if not target.startswith("$"):
+        return [(target, None)]
+    for macro in re.finditer(r"macro_rules!\s*(\w+)\s*\{", src.skel[:offset]):
+        end = close_of(src.skel, macro.end() - 1)
+        if not macro.end() <= offset < end:
             continue
-        if m.group(1) == "model":
+        arm = re.match(r"\s*\(([^()]*)\)\s*=>\s*\{", src.skel[macro.end():end])
+        if not arm:
+            break
+        body_end = close_of(src.skel, macro.end() + arm.end() - 1)
+        if src.skel[body_end + 1:end].strip().strip(";").strip():
+            break
+        params = [re.fullmatch(r"\s*(\$\w+)\s*:\s*ident\s*", arg) for arg in arm[1].split(",")]
+        if not all(params):
+            break
+        names = [arg[1] for arg in params]
+        if target not in names:
+            break
+        calls = []
+        for call in re.finditer(r"\b" + macro[1] + r"!\s*\(([^()]*)\)", src.skel):
+            args = [a.strip() for a in call[1].rstrip(", \n\t").split(",")]
+            if len(args) != len(params) or not all(re.fullmatch(r"\w+", a) for a in args):
+                return []
+            calls.append((args[names.index(target)], lineno(src.clean, call.start())))
+        return calls
+    return []
+
+
+class RustIndex:
+    def __init__(self, g):
+        self.g = g
+        self.types = defaultdict(set)  # Rust identifier -> (addon, module, model) candidates
+        self.extensions = []
+        self.dependencies = {}
+        self.imports = {}
+        self.reexports = defaultdict(list)
+        self.parents = []
+        self.methods = []
+
+    def qualified(self, addon, scope, parts, visited):
+        prefix, *tail = parts
+        module = list(filter(None, scope.split("::")))
+        if prefix in ("erp_sdk", "erp_orm"):
+            return {c[2] for c in self.types[parts[-1]] if c[0] == "erp_sdk"}
+        if prefix.startswith("erp_addon_"):
+            addon = prefix.removeprefix("erp_addon_")
+            module = []
+        elif prefix == "crate":
+            module = []
+        elif prefix == "super":
+            module = module[:-1]
+        elif prefix != "self":
+            module.append(prefix)
+        for segment in tail[:-1]:
+            if segment == "super":
+                module = module[:-1]
+            else:
+                module.append(segment)
+        scope = "::".join(module)
+        key = (addon, scope, tail[-1])
+        if key in visited:
+            return set()
+        direct = {c[2] for c in self.types[key[2]] if c[:2] == key[:2]}
+        alias = self.imports.get(key)
+        if direct:
+            return direct
+        if alias and "::" in alias:
+            return self.qualified(addon, scope, alias.split("::"), visited | {key})
+        found = set()
+        for glob in self.reexports[addon, scope]:
+            found.update(self.qualified(addon, scope, [*glob, key[2]], visited | {key}))
+        return found
+
+    def lookup(self, src, target):
+        target = re.sub(r"\s*::\s*", "::", target)
+        explicit = target if "::" in target else src.imports.get(target)
+        if explicit and "::" in explicit:
+            return self.qualified(src.addon, src.module, explicit.split("::"), set())
+        candidates = self.types[target]
+        local = {c for c in candidates if c[:2] == (src.addon, src.module)}
+        visible = {c for c in candidates if c[0] in self.dependencies[src.addon]}
+        candidates = local or {c for c in candidates if c[0] == src.addon} or visible
+        return {c[2] for c in candidates}
+
+    def target(self, src, typ, line, attr):
+        candidates = self.lookup(src, typ)
+        if len(candidates) == 1:
+            return next(iter(candidates))
+        why = "ambiguous: " + ", ".join(sorted(candidates)) if candidates else "unresolved"
+        self.g.bad(src.path, line, f"{attr} target type `{typ}` is {why}")
+        return None
+
+    def collect(self, addon, f, text):
+        attr = r"#\s*\[\s*(model|extend|methods)\s*\("
+        if "use " not in text and not re.search(attr, text):
+            return
+        clean, skel = production_text(text)
+        parts = f.relative_to(Path(self.g.addons[addon]["dir"]) / "src").with_suffix("").parts
+        module = "::".join(parts[:-1] if parts[-1] in ("mod", "lib") else parts)
+        nested = [(m.end(), close_of(skel, m.end() - 1), m[1]) for m in re.finditer(r"\bmod\s+(\w+)\s*\{", skel)]
+
+        def module_at(offset):
+            return "::".join(filter(None, [module, *(name for start, stop, name in nested if start <= offset < stop)]))
+
+        imports = defaultdict(dict)
+        for clause in re.finditer(r"\b(pub(?:\s*\([^)]*\))?\s+)?use\s+([^;]+);", skel):
+            scope = module_at(clause.start())
+            for alias, path in import_paths(clause[2]):
+                if alias == "*" and clause[1]:
+                    self.reexports[addon, scope].append(path.split("::")[:-1])
+                imports[scope][alias] = path
+                self.imports[addon, scope, alias] = path
+        for m in re.finditer(attr, skel):
+            scope = module_at(m.start())
+            src = RustSource(addon, f.as_posix(), scope, clean, skel, imports[scope])
+            ln = lineno(clean, m.start())
+            oc = close_of(skel, m.end() - 1)
+            end = close_of(skel, skel.index("[", m.start(), m.end()))
+            if oc < 0 or end < oc:
+                self.g.bad(src.path, ln, "unbalanced Rust attribute")
+                continue
+            pos, kw = parse_args(clean, m.end(), oc)
+            start = skip_attrs(skel, end + 1)
+            if m[1] == "methods":
+                impl = re.compile(r"impl\b[^{;]*\{").match(skel, start)
+                if not pos or not impl:
+                    self.g.bad(src.path, ln, "#[methods] needs a target type and impl block")
+                else:
+                    self.methods.append((src, ln, pos[0], impl.end() - 1, m.start()))
+                continue
+            sm = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?struct\s+(\w+)").match(skel, start)
+            if not sm:
+                self.g.bad(src.path, ln, "no struct after the attribute")
+                continue
+            decl = (src, ln, sm, kw)
+            if m[1] == "extend" and pos:
+                self.extensions.append((pos[0], decl))
+                continue
             name = lit(kw.get("name"))
-            if not name:
-                g.bad(p, ln, "#[model] without a literal name")
+            if not name or m[1] == "extend":
+                self.g.bad(src.path, ln, "missing literal model name or extension target")
                 continue
-            how = "defines"
+            self.declare(name, "defines", decl)
+
+    def declare(self, name, how, decl):
+        src, ln, sm, kw = decl
+        self.types[sm[1]].add((src.addon, src.module, name))
+        finish_model(self.g, src.addon, src.path, ln, name, how, src.clean, src.skel, sm, kw)
+        for parent in kw.get("inherit", "").strip("[]").split(","):
+            if parent.strip():
+                self.parents.append((name, src, ln, parent.strip()))
+
+    def resolve(self):
+        for addon in self.g.addons:
+            visible = {"erp_sdk", "base"}
+            todo = list(self.g.addons[addon]["depends"])
+            while todo:
+                dep = todo.pop()
+                if dep not in visible:
+                    visible.add(dep)
+                    todo.extend(self.g.addons.get(dep, {}).get("depends", []))
+            self.dependencies[addon] = visible
+        remaining = self.extensions
+        while remaining:
+            unresolved = []
+            for typ, decl in remaining:
+                candidates = self.lookup(decl[0], typ)
+                if len(candidates) == 1:
+                    self.declare(next(iter(candidates)), "extends", decl)
+                else:
+                    unresolved.append((typ, decl))
+            if len(unresolved) == len(remaining):
+                for typ, (src, ln, _, _) in unresolved:
+                    self.target(src, typ, ln, "#[extend]")
+                break
+            remaining = unresolved
+        for name, src, ln, typ in self.parents:
+            parent = self.target(src, typ, ln, "inherit")
+            if parent:
+                self.g.model(name)["inherits"].append(parent)
+        for src, ln, typ, bo, offset in self.methods:
+            targets = method_targets(src, typ, offset)
+            if not targets:
+                self.g.bad(src.path, ln, f"unsupported or uninstantiated method template {typ}")
+            for target, call in targets:
+                model = self.target(src, target, call or ln, "#[methods]")
+                if model and model not in self.g.models:
+                    self.g.bad(src.path, call or ln, f"model {model} is outside the indexed roots")
+                elif model:
+                    self.read_methods(src, bo, model, call)
+
+    def read_methods(self, src, bo, model, call):
+        end = close_of(src.skel, bo)
+        pattern = re.compile(r"#\[\s*(rpc|method|constrains|onchange|compute)\b")
+        pos = bo + 1
+        while m := pattern.search(src.skel, pos, end):
+            start = skip_attrs(src.skel, m.start())
+            fn = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)").match(src.skel, start)
+            pos = max(start, m.end())
+            if not fn:
+                continue
+            attrs = src.skel[m.start():start]
+            rpc = re.search(r"#\[\s*rpc\b([^\]]*)", attrs)
+            effect = re.search(r"\beffect\s*=\s*(\w+)", rpc[1]) if rpc else None
+            add_method(self.g, model, fn[1], src.addon, src.path, lineno(src.clean, m.start()),
+                       not re.search(r"\bhide\b", rpc[1]) if rpc else None, effect[1] if effect else None, call)
+
+
+CORE_REGISTRY = "crates/erp-registry/src/compose.rs"
+CORE_KEYS = "crates/erp-registry/src/keys.rs"
+CORE_MODULES = "crates/erp-modules/src/base_models.rs"
+CORE_DATA = "crates/erp-data/src/model_data.rs"
+CORE_ORM = "crates/erp-orm/src"
+CORE_INPUTS = (CORE_REGISTRY, CORE_KEYS, CORE_MODULES, CORE_DATA,
+               CORE_ORM + "/records.rs", CORE_ORM + "/dispatch.rs", CORE_ORM + "/rpc/core.rs")
+
+
+def string_constants(clean):
+    return dict(re.findall(r'\bconst\s+(\w+)\s*:\s*&str\s*=\s*"([^"]+)"', clean))
+
+
+def core_fields(g, path, clean, skel, constants, start, end):
+    fields = {}
+    for m in re.compile(r"\bFieldDecl::(\w+)\s*\(").finditer(skel, start, end):
+        args = [arg.strip() for arg in split_top(clean, m.end(), close_of(skel, m.end() - 1))]
+        kind = m[1]
+        name = lit(args[0]) or constants.get(args[0])
+        line = lineno(clean, m.start())
+        if not name:
+            g.bad(path, line, "unresolved core field name " + args[0])
+            continue
+        comodel = None
+        if kind == "new":
+            kind = re.sub(r"(?<!^)(?=[A-Z])", "_", args[1].removeprefix("KindDecl::")).lower()
+        elif kind in ("one2many", "many2one", "many2many"):
+            comodel = lit(args[1]) or constants.get(args[1])
+            if not comodel:
+                g.bad(path, line, "unresolved comodel " + args[1])
+        fields[name] = {"kind": kind, "comodel": comodel, "path": path, "line": line, "string": None}
+    return fields
+
+
+def core_models(g, file):
+    path = file.as_posix()
+    clean, skel = production_text(file.read_text())
+    constants = string_constants(clean)
+    groups = {}
+    for m in re.finditer(r"\bconst\s+(\w+)\s*:\s*&\[FieldDecl\]\s*=\s*&\[", skel):
+        groups[m[1]] = core_fields(g, path, clean, skel, constants, m.end(), close_of(skel, m.end() - 1))
+    for m in re.finditer(r"\bstatic\s+\w+\s*:\s*AddonDescriptor\s*=\s*AddonDescriptor\s*\{", skel):
+        body = clean[m.end():close_of(skel, m.end() - 1)]
+        name = re.search(r'\bname:\s*"([^"]+)"', body)
+        deps = re.search(r"\bdepends:\s*&\[([^\]]*)\]", body)
+        if name and deps:
+            g.core_addons[name[1]] = (path, lineno(clean, m.start()), re.findall(r'"([^"]+)"', deps[1]))
+    for m in re.finditer(r"\bModelDecl::(new|extension)\(", skel):
+        end = close_of(skel, m.end() - 1)
+        args = [arg.strip() for arg in split_top(clean, m.end(), end)]
+        addon = lit(args[0])
+        name = lit(args[1]) or constants.get(args[1])
+        line = lineno(clean, m.start())
+        if not name or not addon:
+            g.bad(path, line, "unresolved core model declaration")
+            continue
+        mod = g.model(name)
+        how = "defines" if m[1] == "new" else "extends"
+        mod["decls"].append((addon, how, path, line))
+        # Read chained builder calls, stopping at the end of this expression.
+        pos = end + 1
+        while attr := re.compile(r"\s*\.(\w+)\s*\(").match(skel, pos):
+            pos = close_of(skel, attr.end() - 1) + 1
+            if not pos:
+                g.bad(path, line, "unbalanced core model builder call")
+                break
+            arg = clean[attr.end():pos - 1].strip()
+            if attr[1] == "fields":
+                fields = groups.get(arg)
+                if fields is None:
+                    fields = core_fields(g, path, clean, skel, constants, attr.end(), pos - 1)
+                    if not fields:
+                        g.bad(path, line, "unresolved core field group " + arg)
+                mod["fields"].update({k: dict(v, addon=addon) for k, v in fields.items()})
+            elif attr[1] == "description":
+                mod["summary"] = lit(arg)
+            elif how == "defines" and ((attr[1] == "kind" and arg == "ModelKind::Abstract")
+                                       or (attr[1] == "log_access" and arg == "false")):
+                mod["audit"] = False
+        if how == "defines":
+            mod.setdefault("audit", True)
+    return groups
+
+
+def core_methods(g, file, table=None):
+    clean, skel = production_text(file.read_text())
+    path = file.as_posix()
+    constants = string_constants(clean)
+    registered = None
+    if table:
+        items = re.search(r"\bstatic\s+" + table + r"\s*:[^=]+=\s*\[([^\]]*)\]", skel)
+        if not items:
+            g.bad(path, 1, f"missing core registration table {table}")
+            return
+        registered = set(re.findall(r"&\s*(\w+)", items[1]))
+    seen = set()
+    registrations = r"\bstatic\s+(\w+)\s*:\s*(?:\w+::)*(MethodImpl|RpcImpl)\s*=\s*(?:\w+::)*\2\s*\{"
+    for m in re.finditer(registrations, skel):
+        if registered is not None and m[1] not in registered:
+            continue
+        seen.add(m[1])
+        body = clean[m.end():close_of(skel, m.end() - 1)]
+        attrs = dict(re.findall(r'\b(addon|model|method):\s*("[^"]+"|\w+)', body))
+        values = [lit(attrs.get(k)) or constants.get(attrs.get(k)) for k in ("model", "method", "addon")]
+        effect = re.search(r"\beffect:\s*(?:\w+::)*Effect::(\w+)", body)
+        exposure = "RpcDecl::Expose" in body if m[2] == "RpcImpl" else None
+        if all(values):
+            add_method(g, *values, path, lineno(clean, m.start()), exposure, effect[1].lower() if effect else None)
         else:
-            target = pos[0].strip() if pos else ""
-            name = types.get(target)
-            if not name:
-                pending.append((addon, p, ln, m, clean, skel, oc, sm, kw, target))
-                continue
-            how = "extends"
-        types[sm.group(1)] = name
-        finish_model(g, addon, p, ln, name, how, clean, skel, oc, sm, kw)
-    for it in list(pending):
-        addon2, p2, ln2, m2, clean2, skel2, oc2, sm2, kw2, target = it
-        name = types.get(target)
-        if name:
-            types[sm2.group(1)] = name
-            finish_model(g, addon2, p2, ln2, name, "extends", clean2, skel2, oc2, sm2, kw2)
-            pending.remove(it)
-    for m in re.finditer(r"#\[methods\s*\(", skel):
-        ln = lineno(clean, m.start())
-        oc = close_of(skel, m.end() - 1)
-        pos, _ = parse_args(clean, m.end(), oc)
-        im = re.compile(r"impl\b[^{;]*\{").match(skel, skip_attrs(skel, oc + 2))
-        if not pos or not im:
-            g.bad(p, ln, "#[methods] without a target type or an impl block")
+            g.bad(path, lineno(clean, m.start()), "unresolved core method registration")
+    for m in re.finditer(r"\b(core_rpc|web_impl)!\s*\(", skel):
+        args = [x.strip() for x in split_top(clean, m.end(), close_of(skel, m.end() - 1))]
+        if registered is not None and args[0] not in registered:
             continue
-        model = types.get(pos[0].strip())
-        if not model:
-            g.bad(p, ln, f"#[methods] target type `{pos[0].strip()}` is not a model of these addons")
-            continue
-        bo = im.end() - 1
-        bc = close_of(skel, bo)
-        for fm in re.finditer(r"(?:#\[(rpc|method)\b[^\]]*\]\s*)+(?:pub(?:\s*\([^)]*\))?\s+)?(?:async\s+)?fn\s+(\w+)", skel[bo:bc]):
-            attrs = fm.group(0)
-            exposed = "#[rpc" in attrs and "hide" not in attrs.split("fn")[0]
-            ef = re.search(r"effect\s*=\s*(\w+)", clean[bo + fm.start():bo + fm.end()])
-            g.model(model)["methods"].setdefault(fm.group(2), {"rpc": exposed, "effect": ef.group(1) if ef else None,
-                                                               "addon": addon, "path": p, "line": lineno(clean, bo + fm.start())})
+        seen.add(args[0])
+        rpc = m[1] == "core_rpc"
+        name = lit(args[2 if rpc else 3])
+        addon = lit(args[1]) if rpc else "web"
+        line = lineno(clean, m.start())
+        if name and addon:
+            add_method(g, "base", name, addon, path, line, True if rpc else None, args[3].lower() if rpc else None)
+        else:
+            g.bad(path, line, "unresolved " + m[1] + " registration")
+
+    if registered is not None:
+        for symbol in sorted(registered - seen):
+            g.bad(path, lineno(clean, items.start()), f"unresolved {table} entry {symbol}")
 
 
-def finish_model(g: Graph, addon: str, p: str, ln: int, name: str, how: str, clean: str, skel: str, oc: int,
+def read_framework(g, rust, root):
+    g.core = True
+    for rel in (CORE_REGISTRY, CORE_MODULES, CORE_DATA, CORE_KEYS):
+        groups = core_models(g, root / rel)
+        if rel == CORE_REGISTRY:
+            g.audit_fields = groups.get("MAGIC_FIELDS", {})
+        if rel == CORE_KEYS:
+            g.version_fields = groups.get("ROW_VERSION_FIELDS", {})
+    if not g.audit_fields:
+        g.bad((root / CORE_REGISTRY).as_posix(), 1, "missing core audit field declarations")
+    if not g.version_fields:
+        g.bad((root / CORE_KEYS).as_posix(), 1, "missing core row-version field declaration")
+    orm = root / CORE_ORM
+    records, _ = production_text((orm / "records.rs").read_text())
+    for m in re.finditer(r'impl\s+Model\s+for\s+(\w+)\s*\{\s*const\s+MODEL_NAME:[^=]+=\s*"([^"]+)"', records):
+        rust.types[m[1]].add(("erp_sdk", "records", m[2]))
+    dispatch, _ = production_text((orm / "dispatch.rs").read_text())
+    for module in sorted(set(re.findall(r"crate::(\w+)::BUILTIN_IMPLS", dispatch))):
+        file = orm / (module + ".rs")
+        if not file.is_file():
+            file = orm / module / "mod.rs"
+        if file.is_file():
+            core_methods(g, file, "BUILTIN_IMPLS")
+        else:
+            g.bad((orm / "dispatch.rs").as_posix(), lineno(dispatch, dispatch.index("crate::" + module + "::BUILTIN_IMPLS")),
+                  "missing core method module " + module)
+    core_methods(g, root / CORE_MODULES, "IMPLS")
+    core_methods(g, orm / "rpc/core.rs", "CORE_RPC")
+    for rel in ("crates/erp-data/src/impex/rpc.rs", "crates/erp-cli/src/human.rs", "crates/erp-cli/src/human/addon_detail.rs"):
+        if (root / rel).is_file():
+            core_methods(g, root / rel)
+
+
+def apply_core_fields(g):
+    for name, model in g.models.items():
+        if name != "base" and "base" not in model["inherits"]:
+            model["inherits"].append("base")
+        for enabled, fields in ((model.get("audit"), g.audit_fields), (model.get("versioned"), g.version_fields)):
+            if enabled:
+                for k, field in fields.items():
+                    model["fields"].setdefault(k, dict(field, addon="base"))
+
+
+def finish_model(g: Graph, addon: str, p: str, ln: int, name: str, how: str, clean: str, skel: str,
                  sm: re.Match, kw: dict[str, str]) -> None:
     mod = g.model(name)
     mod["decls"].append((addon, how, p, ln))
     if kw.get("description") and lit(kw["description"]):
         mod["summary"] = lit(kw["description"])
-    if "inherit" in kw:
-        types = g.__dict__.get("_types", {})
-        for t in [w.strip() for w in kw["inherit"].strip("[]").split(",") if w.strip()]:
-            mod["inherits"].append(types.get(t, t))
+    if how == "defines":
+        mod["audit"] = lit(kw.get("kind")) != "abstract" and kw.get("log_access") != "false"
+    if kw.get("row_version") == "true":
+        mod["versioned"] = True
     bo = skel.find("{", sm.end())
     semi = skel.find(";", sm.end())
     if bo < 0 or 0 <= semi < bo:
@@ -572,12 +978,15 @@ def finish_model(g: Graph, addon: str, p: str, ln: int, name: str, how: str, cle
     bc = close_of(skel, bo)
     pos = bo
     while True:
-        fm = re.compile(r"#\[field\s*\(").search(skel, pos, bc)
+        fm = re.compile(r"#\s*\[\s*field\s*\(").search(skel, pos, bc)
         if not fm:
             break
         fc = close_of(skel, fm.end() - 1)
+        if fc < 0:
+            g.bad(p, lineno(clean, fm.start()), "unbalanced field attribute")
+            break
         args, fkw = parse_args(clean, fm.end(), fc)
-        ident = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?(?:r#)?(\w+)\s*:").match(skel, skip_attrs(skel, fc + 2))
+        ident = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?(?:r#)?(\w+)\s*:").match(skel, skip_attrs(skel, skel.index("]", fc + 1) + 1))
         pos = fc + 2
         if not ident:
             g.bad(p, lineno(clean, fm.start()), "no field identifier after #[field]")
@@ -717,11 +1126,19 @@ def cmd_model(g: Graph, a) -> int:
     lines.append(f"fields ({len(flds)}):")
     for k, v in sorted(flds.items()):
         lines.append(f"  {k}: {v['kind'] or '?'}" + (f" -> {v['comodel']}" if v["comodel"] else "") + f"  {v['path']}:{v['line']}")
-    meths = {k: v for mm in g.chain(a.name) for k, v in g.models.get(mm, {}).get("methods", {}).items()}
-    d["methods"] = {k: {"rpc": v["rpc"], "effect": v["effect"], "at": f"{v['path']}:{v['line']}"} for k, v in sorted(meths.items())}
+    meths = g.method_sources(a.name)
+    d["methods"] = {}
     if meths:
         lines.append(f"methods ({len(meths)}; rpc = exposed):")
-        lines += [f"  {k}{' [rpc ' + (v['effect'] or '-') + ']' if v['rpc'] else ''}  {v['path']}:{v['line']}" for k, v in sorted(meths.items())]
+    for key, sources in sorted(meths.items()):
+        rpc, effect = exposure_of(sources)
+        at = f"{sources[0]['path']}:{sources[0]['line']}"
+        d["methods"][key] = {"rpc": rpc, "effect": effect, "at": at, "sources": sources}
+        lines.append(f"  {key}" + (f" [rpc {effect or '-'}]" if rpc else "") + f"  {at}")
+        for source in sources:
+            if source is not sources[0] or "invocation" in source:
+                call = f" (invoked at line {source['invocation']})" if "invocation" in source else ""
+                lines.append(f"    {source['addon']}  {source['path']}:{source['line']}{call}")
     views = [(k, v) for k, v in sorted(g.views.items()) if v["model"] == a.name]
     acts = [(k, v) for k, v in sorted(g.actions.items()) if v["model"] == a.name]
     menus = [(k, v) for k, v in sorted(g.menus.items()) if v["action"] in {x for x, _ in acts}]
@@ -745,11 +1162,12 @@ def cmd_field(g: Graph, a) -> int:
                                                             + (f"; did you mean: {', '.join(close)}" if close else "")])
         return 1
     flds = g.fields_of(a.model)
-    if a.field in IMPLICIT_FIELDS:
+    if (not g.core and a.field in IMPLICIT_FIELDS and a.field not in flds
+            and (a.field in ("id", "display_name") or g.models[a.model].get("audit", True))):
         out(a, {"exists": True, "implicit": True}, [f"field {a.model}.{a.field}: exists (implicit)"])
         return 0
     if a.field not in flds:
-        close = near(a.field, list(flds) + list(IMPLICIT_FIELDS))
+        close = near(a.field, flds if g.core else list(flds) + list(IMPLICIT_FIELDS))
         out(a, {"exists": False, "did_you_mean": close},
             [f"field {a.model}.{a.field}: NOT DECLARED in these addons" + (f"; did you mean: {', '.join(close)}" if close else "")
              + f" ({len(flds)} fields known; fields of a model from outside the addons path are not known here)"])
@@ -765,17 +1183,42 @@ def cmd_field(g: Graph, a) -> int:
 def cmd_impact(g: Graph, a) -> int:
     touched_models: dict[str, list[str]] = {}
     addons: set[str] = set()
+    known_paths = set()
+    for m in g.models.values():
+        for _, _, path, _ in m["decls"]:
+            known_paths.add(path)
+        for field in m["fields"].values():
+            known_paths.add(field["path"])
+        for method in m["methods"].values():
+            for src in method["sources"]:
+                known_paths.add(src["path"])
+    known_paths.update(v["path"] for v in g.views.values())
+    absolute_paths = {Path(p).resolve(): p for p in known_paths}
     for raw in a.paths:
-        p = Path(raw).as_posix().lstrip("./") if raw.startswith("./") else Path(raw).as_posix()
+        p = absolute_paths.get(Path(raw).resolve(), Path(raw).as_posix())
         own = g.owner(p)
         if own:
             addons.add(own)
         for name, m in g.models.items():
-            if any(dp == p for _, _, dp, _ in m["decls"]) or any(v["path"] == p for v in m["fields"].values()):
+            if any(dp == p for _, _, dp, _ in m["decls"]) or any(v["path"] == p for v in m["fields"].values()) or any(
+                src["path"] == p for method in m["methods"].values() for src in method["sources"]
+            ):
                 touched_models.setdefault(name, []).append(p)
+                if not own:
+                    addons.update(x for x, _, dp, _ in m["decls"] if dp == p and x in g.addons)
+                    addons.update(src["addon"] for method in m["methods"].values() for src in method["sources"]
+                                  if src["path"] == p and src["addon"] in g.addons)
         for vw in g.views.values():
             if vw["path"] == p and vw["model"]:
                 touched_models.setdefault(vw["model"], []).append(p)
+    # Core registrations on a parent model reach addons through model inheritance,
+    # even in a standalone project that omits the base manifest.
+    core_models = {name for name, paths in touched_models.items() if any(g.owner(p) is None for p in paths)}
+    if core_models:
+        for name, m in g.models.items():
+            if core_models.intersection(g.chain(name)):
+                touched_models.setdefault(name, [])
+                addons.update(addon for addon, _, _, _ in m["decls"] if addon in g.addons)
     deps: dict[str, list[str]] = {}
     todo = list(addons)
     seen = set(addons)
@@ -786,6 +1229,9 @@ def cmd_impact(g: Graph, a) -> int:
                 seen.add(name)
                 deps.setdefault(name, []).append(cur)
                 todo.append(name)
+    access_by_model = defaultdict(list)
+    for row in g.access:
+        access_by_model[access_model(g, row)].append(row)
     refs: list[str] = []
     for mname in sorted(touched_models):
         for k, v in sorted(g.views.items()):
@@ -794,9 +1240,8 @@ def cmd_impact(g: Graph, a) -> int:
         for k, v in sorted(g.actions.items()):
             if v["model"] == mname:
                 refs.append(f"action {k} ({v['path']}:{v['line']}) opens {mname}")
-        for r in g.access:
-            if access_model(g, r) == mname:
-                refs.append(f"access row {r['id']} ({r['path']}:{r['line']}) grants {mname}")
+        for r in access_by_model[mname]:
+            refs.append(f"access row {r['id']} ({r['path']}:{r['line']}) grants {mname}")
         for other, m in sorted(g.models.items()):
             for fk, fv in m["fields"].items():
                 if fv["comodel"] == mname and other != mname:
@@ -837,6 +1282,11 @@ def export_graph(g: Graph) -> dict:
 
     def edge(kind: str, a: tuple[str, str], b: tuple[str, str], file: str | None, line: int | None) -> None:
         edges.append({"kind": kind, "from": f"{a[0]}:{a[1]}", "to": f"{b[0]}:{b[1]}", "file": file, "line": line})
+    for name, (path, line, deps) in g.core_addons.items():
+        if name not in g.addons:
+            node("addon", name, path, line)
+            for dep in deps:
+                edge("depends_on", ("addon", name), ("addon", dep), path, line)
     for name, a in g.addons.items():
         node("addon", name, a["path"], 1)
         for dep in a["depends"]:
@@ -855,13 +1305,18 @@ def export_graph(g: Graph) -> dict:
                 edge("relates_to", ("field", f"{mname}.{fname}"), ("model", f["comodel"]), f["path"], f["line"])
         for meth, x in m["methods"].items():
             node("rpc" if x["rpc"] else "method", f"{mname}.{meth}", x["path"], x["line"])
-            edge("has_method", ("model", mname), ("rpc" if x["rpc"] else "method", f"{mname}.{meth}"), x["path"], x["line"])
+            target = ("rpc" if x["rpc"] else "method", f"{mname}.{meth}")
+            for source in x["sources"]:
+                edge("has_method", ("model", mname), target, source["path"], source["line"])
+                if "invocation" in source:
+                    edge("has_method", ("model", mname), target, source["path"], source["invocation"])
     for k, v in g.views.items():
         node("view", k, v["path"], v["line"])
         if v["model"]:
             edge("refers_to", ("view", k), ("model", v["model"]), v["path"], v["line"])
             for fld in v["fields"]:
-                edge("uses_field", ("view", k), ("field", f"{v['model']}.{fld}"), v["path"], v["line"])
+                owner = next((m for m in g.chain(v["model"]) if fld in g.models.get(m, {}).get("fields", {})), v["model"])
+                edge("uses_field", ("view", k), ("field", f"{owner}.{fld}"), v["path"], v["line"])
         if v["inherits"]:
             edge("inherits", ("view", k), ("view", v["inherits"]), v["path"], v["line"])
     for k, v in g.actions.items():
@@ -885,7 +1340,7 @@ def export_graph(g: Graph) -> dict:
         if r["model"]:
             edge("refers_to", ("record", r["id"]), ("model", r["model"]), r["path"], r["line"])
     known = {f"{k}:{n}" for k, n in nodes}
-    edges = [e for e in edges if e["to"] in known]  # edges to things outside these addons (base, implicit fields) are left out
+    edges = [e for e in edges if e["to"] in known and e["from"] in known]
     key = lambda e: (e["kind"], e["from"], e["to"], e["file"] or "", e["line"] or 0)  # noqa: E731
     uniq = {json.dumps(e, sort_keys=True): e for e in edges}
     return {"format": "addon-graph/1",
@@ -910,7 +1365,24 @@ def cmd_context(g: Graph, a) -> int:
     def hit(name: str, extra: str = "") -> int:
         parts = set(re.split(r"[^a-z0-9]+", (name + " " + extra).lower()))
         return sum(1 for w in ws if w in parts or any(p.startswith(w) for p in parts if len(w) >= 4))
+    for term in ws:
+        model, _, member = term.rpartition(".")
+        if model in g.models:
+            field = g.fields_of(model).get(member)
+            if field:
+                scored.append((12.0, f"{field['path']}:{field['line']}", f"field {term}", "field declaration"))
+            sources = g.method_sources(model).get(member, [])
+            rpc, _ = exposure_of(sources)
+            for source in sources:
+                scored.append((12.0, f"{source['path']}:{source['line']}",
+                               ("rpc " if rpc else "method ") + term, "method declaration"))
     for name, m in g.models.items():
+        for key, method in m["methods"].items():
+            label = f"{name}.{key}"
+            if key.lower() in ws:
+                for source in method["sources"]:
+                    scored.append((10.0, f"{source['path']}:{source['line']}",
+                                   ("rpc " if method["rpc"] else "method ") + label, "method declaration"))
         n = hit(name, m.get("summary", ""))
         if n or name in " ".join(a.text):
             _, _, p, l = next((x for x in m["decls"] if x[1] == "defines"), m["decls"][0])
@@ -953,6 +1425,7 @@ def cmd_context(g: Graph, a) -> int:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--addons-path", action="append", default=None, help="a directory of addons (repeatable; default ./addons)")
+    ap.add_argument("--framework-root", type=Path, help="ERPForAll checkout for the core index (auto-detected in the framework root)")
     ap.add_argument("--json", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("summary")
@@ -964,11 +1437,20 @@ def main(argv: list[str] | None = None) -> int:
     for sp in sub.choices.values():
         sp.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
     a = ap.parse_args(argv)
-    paths = [Path(x) for x in (a.addons_path or ["addons"])]
+    default_addons = Path("addons")
+    if a.framework_root is not None and not default_addons.is_dir():
+        default_addons = a.framework_root / "addons"
+    paths = [Path(x) for x in (a.addons_path or [default_addons])]
     if not any(p.is_dir() for p in paths):
         print("addon-graph: no addons directory found; pass --addons-path", file=sys.stderr)
         return 2
-    g = build(paths)
+    framework = a.framework_root
+    if framework is None and Path(CORE_REGISTRY).is_file():
+        framework = Path(".")
+    if framework is not None and not all((framework / rel).is_file() for rel in CORE_INPUTS):
+        print(f"addon-graph: incomplete ERPForAll framework root: {framework}", file=sys.stderr)
+        return 2
+    g = build(paths, framework)
     return {"summary": cmd_summary, "model": cmd_model, "field": cmd_field, "impact": cmd_impact, "context": cmd_context, "export": cmd_export}[a.cmd](g, a)
 
 

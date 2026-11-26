@@ -78,9 +78,10 @@ Python 3.10+, standard library only.
 - `tools/addon-lint.py <addon-dir> [--addons-path DIR]...` (command `erpforall-addon-lint`): static checks for
   manifest/data file mismatches, access CSV shape, XML structure and root, references used before they are defined,
   model and field names, and model-file keys. It is not a substitute for installing the addon.
-- `tools/addon-graph.py [--addons-path DIR]... summary|model|field|impact|context` (command `erpforall-addon-graph`):
+- `tools/addon-graph.py [--addons-path DIR]... [--framework-root DIR] summary|model|field|impact|context|export` (command `erpforall-addon-graph`):
   a graph of your own addons (models, fields, RPC methods, views, menus, actions, access rows, inheritance, addon
-  dependencies), each fact with `path:line`. `model` and `field` exit 1 when a name is not declared in your addons;
+  dependencies), each fact with `path:line`. From the ERPForAll root it also indexes core models, fields and methods.
+  Pass `--framework-root DIR` to include the core from a standalone addon project. `model` and `field` exit 1 on a miss;
   `impact <file>...` shows what a change reaches; `context "<task>"` lists the places to read first; `export`
   prints the whole graph as JSON. A worked example with two addons and sample output is in
   [examples/README.md](examples/README.md).
